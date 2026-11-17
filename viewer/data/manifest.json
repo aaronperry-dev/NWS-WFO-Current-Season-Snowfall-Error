@@ -81,6 +81,8 @@
  "thresholds": {
   "snowing_in_per_6h": 0.08,
   "event_total_in": 1.5,
+  "local_min_in": 1.0,
+  "local_area_pct": 5.0,
   "gap_hours": 12,
   "max_hours": 48,
   "lead_hours": [
@@ -154,7 +156,7 @@
      "counts": {}
     }
    },
-   "updated": "2026-11-17T20:08Z",
+   "updated": "2026-11-17T20:30Z",
    "nohrsc_through": "2026-11-17T18:00Z",
    "ndfd_archive_complete_through": "2026-11-11"
   }
