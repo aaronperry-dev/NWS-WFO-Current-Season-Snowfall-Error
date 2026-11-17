@@ -1,0 +1,5 @@
+# only for scripts/build_basemap.py (the finished basemap is already in viewer/basemap/)
+numpy>=1.24
+pillow>=10.0
+cartopy>=0.22
+shapely>=2.0
