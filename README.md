@@ -30,7 +30,10 @@ The view is kept in the URL (`#season=2026-27&office=BOX&event=BOX-2026121206&ba
 `pipeline/update_season.py` runs the same steps every time and is safe to re-run:
 
 1. **Observed.** NOHRSC National Snowfall Analysis (`sfav2`), 6-hourly, 0.04° (~4 km). New periods are read, and the last 21 days are re-read because recent analyses are revised.
-2. **Events** are detected per office from the CWA-mean 6-hour series: a period with ≥ 0.08 in counts as snowing, snowing periods less than 12 h apart are merged, and a cluster is an event if its CWA-mean total is ≥ 1.5 in. Events longer than 48 h are split at their quietest 6 hours.
+2. **Events** are detected per office in two ways, both from the 6-hour series:
+   * **CWA-mean events** (the rule of the multi-season study): a period with a CWA-mean ≥ 0.08 in counts as snowing, snowing periods less than 12 h apart are merged, and a cluster is an event if its CWA-mean total is ≥ 1.5 in.
+   * **Local events** (tagged *local* in the viewer): snow that stays in part of the CWA (a northern edge, mountains, a lake-effect belt) never reaches a CWA-mean of 1.5 in. A cluster that is not already a CWA-mean event also counts when **at least 5 % of the CWA's cells received 1 in or more** in total (a period counts as snowing for this when ≥ 2 % of the CWA got ≥ 0.3 in in it).
+   Events longer than 48 h are split at their quietest 6 hours.
 3. **Forecast.** The official WFO-edited NDFD *Snowfall Accumulation* grids (WMO header YSUZ98, 6-hour, 2.5 km) from the NCEI archive: the **latest run issued at least 12 h before the event began** (6 h if no run is available that early). It is regridded to the 0.04° cells by averaging 5 × 5 bilinear samples per cell. This is the forecasters' product, not NBM.
 4. **Error** = forecast − observed per cell, over the cells inside the CWA. Per event: mean forecast and observed, mean error, MAE, RMSE, percent bias, hit rate (|error| ≤ max(2 in, 30 % of observed)), and the highest cell. Season to date: the mean over verified events (a cell needs valid data in ≥ 90 % of them), with a 90 % bootstrap interval from 5 events on.
 5. **Event status:** `ongoing` → `pending_forecast` → `verified`. Others: `no_forecast` (the archive covers the day but no run covers the event) and `missing_analysis` (a NOHRSC period is missing).
@@ -89,11 +92,11 @@ grid = np.fromfile("viewer/data/" + ev["file"], dtype="<f4").reshape(o["ny"], o[
 
 ## Settings
 
-At the top of `pipeline/update_season.py`: the offices, the months of a season (`MONTHS`, October–May), the event rules (`THR_SERIES`, `THR_TOTAL`, `GAP_HOURS`, `MAX_HOURS`), the forecast lead (`LEADS`), the look-back for revised analyses (`LOOKBACK_DAYS`), the radar exclusions (`RADAR_EXCLUSIONS`), the sample-size flags and the network limits. The 1.5 in event threshold means small, early-season snowfalls do not count as events (early in the 2026–27 season, for example, CAR had 1.35 in of CWA-mean snowfall in total, but never ≥ 1.5 in in one event); lower `THR_TOTAL` to track smaller events.
+At the top of `pipeline/update_season.py`: the offices, the months of a season (`MONTHS`, October–May), the event rules (`THR_SERIES`, `THR_TOTAL`, `GAP_HOURS`, `MAX_HOURS`), the forecast lead (`LEADS`), the look-back for revised analyses (`LOOKBACK_DAYS`), the radar exclusions (`RADAR_EXCLUSIONS`), the sample-size flags and the network limits. `LOCAL_MIN_IN` and `LOCAL_AREA_PCT` (1 in, 5 %) decide which localized snowfalls count; set `LOCAL_AREA_PCT` to 100 to track only CWA-mean events as in the study. Local events are smaller on average, so they pull a season's mean error toward zero (for winter 2022–23 they roughly doubled the event count, e.g. BOX 5 → 16).
 
 ## Testing
 
-* **Same numbers as the multi-season study.** For winter 2022–23, the forecast and observed event grids of BTV and GYX are bit-for-bit identical to those from the original script (17 and 15 events, same IDs, maximum difference 0).
+* **Same numbers as the multi-season study.** For winter 2022–23, the CWA-mean events of all four offices are the same events (IDs, windows, totals) as in the original script, and the BTV and GYX forecast and observed grids are bit-for-bit identical (17 and 15 events, maximum difference 0). The local events are additional.
 * **Incremental equals one-shot.** Running the updater as the season unfolded (mid-December, year end, May) gives the same events, statistics and grids as one full run. Events that were in progress or awaiting the archive at an earlier step were verified on later runs.
 * **Viewer.** Checked in headless Chrome for an empty season, for a populated season (event list, event map, deep link, Esc, tooltip, static and PHP builds) and for requests to other servers (none).
 * Not tested here: the GitHub Actions run itself (it needs your repository).

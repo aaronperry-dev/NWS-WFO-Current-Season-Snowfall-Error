@@ -63,6 +63,10 @@ MONTHS = tuple(int(m) for m in os.environ.get("NWSNOW_MONTHS", "10,11,12,1,2,3,4
 NOHRSC_X0, NOHRSC_Y0, NOHRSC_STEP = -126.0, 55.0, 0.04          # NOHRSC sfav2 CONUS grid: 1500 x 850 cells of 0.04 deg, upper-left corner
 R0, R1, C0, C1 = 175, 388, 1150, 1500                            # rows 175..387 (48.0N..39.5N), cols 1150..1499 (80W..66W): covers all four CWAs
 THR_SERIES, THR_TOTAL, GAP_HOURS, MAX_HOURS = 0.08, 1.5, 12, 48
+# LOCALIZED events: snow that misses the CWA-mean threshold but still hit part of the area (lake-effect belts, mountains, a northern edge) also counts as an event
+# when at least LOCAL_AREA_PCT % of the CWA's cells received at least LOCAL_MIN_IN inches in total. A 6-h period counts as "snowing" for this when at least
+# AREA_SERIES_FRAC of the CWA got AREA_SERIES_IN inches in it.
+LOCAL_MIN_IN, LOCAL_AREA_PCT, AREA_SERIES_IN, AREA_SERIES_FRAC = 1.0, 5.0, 0.3, 0.02
 LEADS = (12, 6)                                                  # forecast = latest run issued at least this many hours before the event starts
 LOOKBACK_DAYS = 21                                               # recent analyses are re-fetched this far back (NOHRSC revises them)
 MIN_VALID = 0.9                                                  # a map cell needs valid data in this share of the events
@@ -221,9 +225,9 @@ def season_periods(season, latest):
     return out
 
 def cwa_series(off, a):
-    """CWA-mean snowfall (in) and valid fraction of a cube array"""
+    """CWA-mean snowfall (in), valid fraction, and the share of valid cells with >= AREA_SERIES_IN of a cube array"""
     M = office_geometry(off)["M"]; v = a[M]; fin = np.isfinite(v); frac = float(fin.mean()) if v.size else 0.0
-    return (float(v[fin].mean()) if fin.any() else float("nan")), frac
+    return (float(v[fin].mean()) if fin.any() else float("nan")), frac, (float((v[fin] >= AREA_SERIES_IN).mean()) if fin.any() else float("nan"))
 
 # ======================================================================================================================================
 # NDFD forecasts: NCEI THREDDS archive, WMO YSUZ98 "Snowfall Accumulation", KWBN, CONUS 2.5 km, 6-h messages
@@ -299,25 +303,44 @@ def ends_of(w0, w1): return [w0 + SIX * (i + 1) for i in range(int((w1 - w0).tot
 # ======================================================================================================================================
 # EVENT DETECTION from the stored CWA-mean series
 # ======================================================================================================================================
-def detect(ts, ser, now_end):
-    """events [(window start, window end, total in, ongoing)] from the 6-h CWA-mean series (ts = period end times, ser = inches, NaN = no data)"""
-    hot = [i for i in range(len(ts)) if np.isfinite(ser[i]) and ser[i] >= THR_SERIES]; grp = []
+def _emit(ts, ser, i0, i1, ongoing):
+    """one event from period indices i0..i1, split at the quietest 6-h period when longer than MAX_HOURS"""
+    w0 = ts[i0] - SIX; w1 = ts[i1]; ev = []
+    if (w1 - w0).total_seconds() / 3600 > MAX_HOURS:
+        seg = [(i0, i1)]
+        while True:
+            j0, j1 = seg[-1]
+            if (ts[j1] - ts[j0]).total_seconds() / 3600 + 6 <= MAX_HOURS: break
+            k = j0 + 4 + int(np.nanargmin(ser[j0 + 4:j0 + 8])); seg[-1] = (j0, k); seg.append((k + 1, j1))
+        for n, (a, b) in enumerate(seg): ev.append((ts[a] - SIX, ts[b], float(np.nansum(ser[a:b + 1])), ongoing and n == len(seg) - 1))
+    else: ev.append((w0, w1, float(np.nansum(ser[i0:i1 + 1])), ongoing))
+    return ev
+
+def _groups(ts, hot):
+    grp = []
     for i in hot:
         if grp and ts[i] - ts[grp[-1][-1]] <= dt.timedelta(hours=GAP_HOURS): grp[-1].append(i)
         else: grp.append([i])
+    return grp
+
+def detect(ts, ser, now_end):
+    """events [(window start, window end, total in, ongoing)] from the 6-h CWA-mean series (ts = period end times, ser = inches, NaN = no data)"""
     ev = []
-    for g in grp:
-        i0, i1 = g[0], g[-1]; tot = float(np.nansum(ser[i0:i1 + 1])); w0 = ts[i0] - SIX; w1 = ts[i1]
-        ongoing = (now_end - w1) < dt.timedelta(hours=GAP_HOURS)          # snow could still resume and extend the event
-        if tot < THR_TOTAL: continue
-        if (w1 - w0).total_seconds() / 3600 > MAX_HOURS:                  # split very long events at their quietest 6-h period
-            seg = [(i0, i1)]
-            while True:
-                j0, j1 = seg[-1]
-                if (ts[j1] - ts[j0]).total_seconds() / 3600 + 6 <= MAX_HOURS: break
-                k = j0 + 4 + int(np.nanargmin(ser[j0 + 4:j0 + 8])); seg[-1] = (j0, k); seg.append((k + 1, j1))
-            for n, (a, b) in enumerate(seg): ev.append((ts[a] - SIX, ts[b], float(np.nansum(ser[a:b + 1])), ongoing and n == len(seg) - 1))
-        else: ev.append((w0, w1, tot, ongoing))
+    for g in _groups(ts, [i for i in range(len(ts)) if np.isfinite(ser[i]) and ser[i] >= THR_SERIES]):
+        i0, i1 = g[0], g[-1]
+        if float(np.nansum(ser[i0:i1 + 1])) < THR_TOTAL: continue
+        ev += _emit(ts, ser, i0, i1, (now_end - ts[i1]) < dt.timedelta(hours=GAP_HOURS))      # snow could still resume and extend the event
+    return ev
+
+def detect_local(ts, ser, area, mean_events, now_end, check):
+    """localized events [(start, end, CWA-mean total, ongoing, % of CWA area >= LOCAL_MIN_IN)]: snowing periods by area share, qualified by check(start, end, ongoing) -> (ok, area %).
+    Groups that touch an event already found from the CWA-mean series are left to that event."""
+    ev = []; gap = dt.timedelta(hours=GAP_HOURS)
+    for g in _groups(ts, [i for i in range(len(ts)) if np.isfinite(area[i]) and area[i] >= AREA_SERIES_FRAC]):
+        i0, i1 = g[0], g[-1]; w0 = ts[i0] - SIX; w1 = ts[i1]
+        if any(w0 <= m1 + gap and w1 >= m0 - gap for m0, m1, _, _ in mean_events): continue
+        ongoing = (now_end - w1) < gap; ok, pct = check(w0, w1, ongoing)
+        if ok: ev += [(a, b, t, o, pct) for a, b, t, o in _emit(ts, ser, i0, i1, ongoing)]
     return ev
 
 # ======================================================================================================================================
@@ -362,14 +385,15 @@ def load_state(sdir):
     for off in OFFICES:
         series[off] = {}; p = sdir / f"series_{off}.csv"
         if p.exists():
-            for r in csv.DictReader(open(p)): series[off][dt.datetime.strptime(r["end_utc"], "%Y%m%d%H")] = (float(r["mean_in"]) if r["mean_in"] != "" else float("nan"), float(r["valid_frac"]))
+            for r in csv.DictReader(open(p)): series[off][dt.datetime.strptime(r["end_utc"], "%Y%m%d%H")] = (float(r["mean_in"]) if r["mean_in"] != "" else float("nan"), float(r["valid_frac"]),
+                                                                              float(r["area_frac"]) if r.get("area_frac") not in (None, "") else float("nan"))
     return st, series
 
 def save_series(sdir, off, s):
     sdir.mkdir(parents=True, exist_ok=True)
     with open(sdir / f"series_{off}.csv", "w", newline="") as f:
-        w = csv.writer(f); w.writerow(["end_utc", "mean_in", "valid_frac"])
-        for t in sorted(s): w.writerow([key(t), "" if not np.isfinite(s[t][0]) else f"{s[t][0]:.4f}", f"{s[t][1]:.3f}"])
+        w = csv.writer(f); w.writerow(["end_utc", "mean_in", "valid_frac", "area_frac"])
+        for t in sorted(s): w.writerow([key(t), "" if not np.isfinite(s[t][0]) else f"{s[t][0]:.4f}", f"{s[t][1]:.3f}", "" if not np.isfinite(s[t][2]) else f"{s[t][2]:.4f}"])
 
 def grid_path(sdir, off, i): return sdir / "grids" / f"{off}_{i}.npz"
 def load_grids(sdir, off, i):
@@ -383,6 +407,19 @@ def save_grids(sdir, off, i, obs, fc=None):
 # ======================================================================================================================================
 # THE UPDATE
 # ======================================================================================================================================
+def local_check(sdir, state, off, w0, w1, ongoing, look):
+    """does a snowing stretch qualify as a localized event? -> (ok, % of CWA cells with >= LOCAL_MIN_IN in total). Settled answers (older than the look-back) are kept in the state."""
+    lc = state.setdefault("local_checks", {}); k = f"{off}|{iso(w0)}|{iso(w1)}"
+    if not ongoing and w1 < look and k in lc: return lc[k] >= LOCAL_AREA_PCT, lc[k]
+    ends = ends_of(w0, w1)
+    for t in ends:
+        if not (cfg.CUBE / (key(t) + ".npy")).exists(): fetch_period(t)
+    if not all((cfg.CUBE / (key(t) + ".npy")).exists() for t in ends): return False, None          # not evaluable now; asked again on the next run
+    G = office_geometry(off); tot = np.sum([np.nan_to_num(np.load(cfg.CUBE / (key(t) + ".npy"))[G["sl"]]) for t in ends], axis=0); v = tot[G["CM"]]
+    pct = float(100 * (v >= LOCAL_MIN_IN).mean()) if v.size else 0.0
+    if not ongoing: lc[k] = round(pct, 2)
+    return pct >= LOCAL_AREA_PCT, pct
+
 def update(args):
     season = args.season; y0 = int(season[:4]); sdir = ROOT / "state" / season; offices = args.offices
     now = dt.datetime.strptime(args.asof, "%Y-%m-%dT%H") if args.asof else _utcnow().replace(minute=0, second=0, microsecond=0)
@@ -395,7 +432,7 @@ def update(args):
     periods = season_periods(season, latest)
     if not periods: print("no season periods yet"); return None
     have_all = {o: set(series[o]) for o in offices}; look = latest - dt.timedelta(days=LOOKBACK_DAYS)
-    todo = [t for t in periods if t >= look or any(t not in have_all[o] for o in offices)]
+    todo = [t for t in periods if t >= look or any(t not in have_all[o] or (series[o][t][1] > 0 and not np.isfinite(series[o][t][2])) for o in offices)]
     cached = sum((cfg.CUBE / (key(t) + ".npy")).exists() for t in todo)
     print(f"NOHRSC through {latest:%Y-%m-%d %H}Z: {len(periods)} season periods, {len(todo)} to (re)read ({cached} cached)", flush=True)
     # a look-back period is re-fetched even when the cache holds it, because the analysis may have been revised since: drop cached files inside the look-back
@@ -409,7 +446,7 @@ def update(args):
         if got[t].startswith("err"): continue                                  # transient failure: not recorded, so the next run tries again
         f = cfg.CUBE / (key(t) + ".npy")
         if not f.exists():
-            for o in offices: series[o][t] = (float("nan"), 0.0)           # missing analysis: recorded so that detection and status know
+            for o in offices: series[o][t] = (float("nan"), 0.0, float("nan"))           # missing analysis: recorded so that detection and status know
             continue
         a = np.load(f)
         for o in offices: series[o][t] = cwa_series(o, a)
@@ -421,9 +458,13 @@ def update(args):
     out_events = {}; need_fc = []; pset = set(periods)
     for off in offices:
         s = series[off]; ts = sorted(t for t in s if t in pset); ser = np.array([s[t][0] if s[t][1] > 0.5 else np.nan for t in ts])
-        det = detect(ts, ser, latest); old = {e["id"]: e for e in state["offices"].get(off, [])}; evs = []
-        for w0, w1, tot, ongoing in det:
+        area = np.array([s[t][2] if s[t][1] > 0.5 else np.nan for t in ts])
+        det = [(*d, None) for d in detect(ts, ser, latest)]
+        det += detect_local(ts, ser, area, [(d[0], d[1], 0, 0) for d in det], latest, lambda w0, w1, ongoing, off=off: local_check(sdir, state, off, w0, w1, ongoing, look))
+        det.sort(key=lambda d: d[0]); old = {e["id"]: e for e in state["offices"].get(off, [])}; evs = []
+        for w0, w1, tot, ongoing, apct in det:
             i = eid(w0); prev = old.get(i); e = dict(id=i, start=iso(w0), end=iso(w1), hours=int((w1 - w0).total_seconds() // 3600), obs_cwa_mean=round(tot, 3))
+            if apct is not None: e["basis"] = "local"; e["area_pct"] = round(apct, 1)
             if prev and prev.get("status") == "verified" and w0 < fetch_start and prev.get("end") == e["end"]:
                 evs.append(prev); continue                                     # frozen, already verified
             ends = ends_of(w0, w1); miss = [t for t in ends if t not in s or not np.isfinite(s[t][0])]
@@ -517,12 +558,12 @@ def export(season, offices):
         ver = [e for e in evs if e["status"] == "verified"]; grids = {e["id"]: load_grids(sdir, off, e["id"]) for e in ver}
         for p in (out / season / "events").glob(f"{off}_*_error.bin"): p.unlink()                       # rewritten below; drops events that no longer exist
         for e in sorted(evs, key=lambda e: e["start"], reverse=True):
-            rec = {k: e[k] for k in ("id", "start", "end", "hours", "obs_cwa_mean", "status") if k in e}
+            rec = {k: e[k] for k in ("id", "start", "end", "hours", "obs_cwa_mean", "status", "basis", "area_pct") if k in e}
             if e["status"] == "verified":
                 g = (grids[e["id"]]["fc"] - grids[e["id"]]["obs"]).astype("<f4"); g[~G["CM"]] = np.nan; g[~np.isfinite(grids[e["id"]]["fc"] - grids[e["id"]]["obs"])] = np.nan; g[G["XM"]] = EXCLUDED
                 fn = f"{season}/events/{off}_{e['id']}_error.bin"; g.tofile(out / fn); rec.update(file=fn, run=e.get("run"), lead_hours=e.get("lead_hours"), **e["stats"])
             ent["events"].append(rec)
-            rows.append(dict(season=season, office=off, event_start_utc=e["start"], event_end_utc=e["end"], hours=e["hours"], status=e["status"], observed_cwa_mean_in=e["obs_cwa_mean"],
+            rows.append(dict(season=season, office=off, event_start_utc=e["start"], event_end_utc=e["end"], hours=e["hours"], status=e["status"], basis=e.get("basis", "cwa_mean"), area_ge_min_pct=e.get("area_pct", ""), observed_cwa_mean_in=e["obs_cwa_mean"],
                              **{k: (round(e["stats"][k], 3) if e.get("stats") and e["stats"].get(k) is not None else "") for k in ("mean_forecast", "mean_observed", "mean_error", "mae", "rmse", "percent_bias", "hit_rate", "max_observed", "max_forecast")},
                              forecast_run_utc=e.get("run") or "", lead_hours=e.get("lead_hours") or ""))
         for p in (out / season).glob(f"{off}_mean_error.bin"): p.unlink()
@@ -536,7 +577,7 @@ def export(season, offices):
              offices={o: dict(name=OFFICES[o]["name"], color=OFFICES[o]["color"], point=list(OFFICES[o]["pt"])) for o in ORDER},
              radar_exclusions={o: dict(radar=v[0], azimuth=[v[3], v[4]], min_range_km=v[5]) for o, v in RADAR_EXCLUSIONS.items() if o in OFFICES},
              min_valid_event_fraction=MIN_VALID, small_sample_events=SMALL_SAMPLE,
-             thresholds=dict(snowing_in_per_6h=THR_SERIES, event_total_in=THR_TOTAL, gap_hours=GAP_HOURS, max_hours=MAX_HOURS, lead_hours=list(LEADS)))
+             thresholds=dict(snowing_in_per_6h=THR_SERIES, event_total_in=THR_TOTAL, local_min_in=LOCAL_MIN_IN, local_area_pct=LOCAL_AREA_PCT, gap_hours=GAP_HOURS, max_hours=MAX_HOURS, lead_hours=list(LEADS)))
     M.setdefault("seasons", {})[season] = dict(label=f"{season_label(season)} season", window=f"Oct 1 {season[:4]} – May 31 {int(season[:4]) + 1}", offices=ofc,
                                                updated=state.get("updated"), nohrsc_through=state.get("nohrsc_through"), ndfd_archive_complete_through=state.get("ndfd_archive_complete_through"))
     M["default_season"] = max(M["seasons"]); json.dump(M, open(mf, "w"), indent=1)

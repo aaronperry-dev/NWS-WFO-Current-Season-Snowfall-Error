@@ -98,6 +98,8 @@ function dayRange(a, b) {                                       // 'Nov 12', 'No
   return `${d1}–${MON[e.getUTCMonth()]} ${e.getUTCDate()}`;
 }
 const evTitle = (ev) => `${zt(new Date(ev.start))} to ${zt(new Date(ev.end))}`;
+const localHelp = (e) => `Localized event: about ${Math.round(e.area_pct)}% of the CWA received at least ${state.M.thresholds.local_min_in} in, but the CWA-mean total (${e.obs_cwa_mean.toFixed(2)} in) is below the ${state.M.thresholds.event_total_in} in threshold.`;
+const localTag = (e) => e.basis === 'local' ? ` <span class="loc" title="${esc(localHelp(e))}">local</span>` : '';
 
 function notice(msg) { const n = el('notice'); n.hidden = !msg; n.textContent = msg || ''; }
 async function getJson(url) { const r = await fetch(url); if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`); return r.json(); }
@@ -154,7 +156,7 @@ function drawStatus() {
   let html = `<div class="meta">${[upd, an, ar].filter(Boolean).map(esc).join(' &middot; ')}</div>`;
   if (!total) {
     const tots = state.offs.filter((o) => o.observed_total_in != null).map((o) => `${esc(o.off)} ${o.observed_total_in.toFixed(2)} in`).join(' &middot; ');
-    html += `<div class="empty"><b>No qualifying snow events yet this season.</b> An event needs a CWA-mean total of at least ${state.M.thresholds.event_total_in} in. ${tots ? 'CWA-mean snowfall so far (all small bursts): ' + tots + '.' : ''}</div>`;
+    html += `<div class="empty"><b>No qualifying snow events yet this season.</b> An event needs a CWA-mean total of at least ${state.M.thresholds.event_total_in} in, or at least ${state.M.thresholds.local_area_pct}% of the CWA receiving ${state.M.thresholds.local_min_in} in or more. ${tots ? 'CWA-mean snowfall so far (all small bursts): ' + tots + '.' : ''}</div>`;
   } else html += `<div class="counts"><b>${total}</b> events detected &middot; <b>${ver}</b> verified${pend ? ` &middot; ${pend} awaiting the forecast archive` : ''}${on ? ` &middot; ${on} in progress` : ''}</div>`;
   box.innerHTML = html;
 }
@@ -180,7 +182,7 @@ function drawEvents() {
   el('eventsTitle').textContent = state.sel ? `Events: ${state.sel}` : 'Events, newest first';
   el('events').innerHTML = `<thead><tr><th>Event (UTC)</th><th>Office</th><th>Obs.</th><th>Fcst.</th><th>Error (in)</th><th>MAE</th></tr></thead><tbody>${list.map((e) => {
     const m = state.M.offices[e.off], sel = state.ev && state.ev.off === e.off && state.ev.id === e.id, ver = e.status === 'verified';
-    const head = `<td class="evtime"><b>${esc(dayRange(e.start, e.end))}</b><small>${esc(evTitle(e))}</small></td><td><span class="chip" style="background:${esc(m.color)}"></span><b>${esc(e.off)}</b></td>`;
+    const head = `<td class="evtime"><b>${esc(dayRange(e.start, e.end))}</b><small>${esc(evTitle(e))}${localTag(e)}</small></td><td><span class="chip" style="background:${esc(m.color)}"></span><b>${esc(e.off)}</b></td>`;
     if (!ver) return `<tr class="ev pend" data-off="${e.off}" data-id="${e.id}" title="${esc(STATUS_HELP[e.status] || '')}">${head}<td>${e.obs_cwa_mean.toFixed(1)}</td><td colspan="3" class="badge"><span class="st st-${esc(e.status)}">${esc(STATUS_TEXT[e.status] || e.status)}</span></td></tr>`;
     return `<tr class="ev ${sel ? 'sel' : ''}" data-off="${e.off}" data-id="${e.id}" tabindex="0" title="Show the error map of this event">${head}<td>${e.mean_observed.toFixed(1)}</td><td>${e.mean_forecast.toFixed(1)}</td>
       <td><span class="val" style="${chipStyle(e.mean_error, L)}">${fmt(e.mean_error, 1)}</span></td><td>${e.mae.toFixed(1)}</td></tr>`;
@@ -213,7 +215,7 @@ function drawDetail() {
   const m = state.M.offices[o.off], head = `<h3><span class="chip" style="background:${esc(m.color)}"></span>${esc(o.off)} &mdash; ${esc(m.name)}</h3>`; box.hidden = false;
   if (state.ev) {                                                    // one event
     const e = eventOf(o.off, state.ev.id);
-    box.innerHTML = `${head}<div><b>Event ${esc(evTitle(e))}</b> (${e.hours} h)</div><button id="evBack" class="linkbtn" type="button">&larr; Back to season-to-date mean</button>
+    box.innerHTML = `${head}<div><b>Event ${esc(evTitle(e))}</b> (${e.hours} h)</div>${e.basis === 'local' ? `<p class="note">${esc(localHelp(e))}</p>` : ''}<button id="evBack" class="linkbtn" type="button">&larr; Back to season-to-date mean</button>
       <dl>
         <dt>Mean error (forecast &minus; observed)</dt><dd>${fmt(e.mean_error)} in</dd>
         <dt>Mean forecast / mean observed</dt><dd>${e.mean_forecast.toFixed(2)} / ${e.mean_observed.toFixed(2)} in</dd>
