@@ -88,15 +88,30 @@
     "obs_cwa_mean": 0.312,
     "basis": "local",
     "area_pct": 10.9,
-    "status": "pending_forecast"
+    "status": "verified",
+    "run": "2026-11-13T09:16Z",
+    "lead": 12,
+    "lead_hours": 26.7,
+    "stats": {
+     "mean_forecast": 0.333875834941864,
+     "mean_observed": 0.34735724329948425,
+     "mean_error": -0.013481388799846172,
+     "mae": 0.22671671211719513,
+     "rmse": 0.3568529188632965,
+     "percent_bias": -3.881131172180176,
+     "hit_rate": 99.94692144373673,
+     "max_observed": 2.7533397674560547,
+     "max_forecast": 1.748439908027649,
+     "cells": 1884
+    }
    }
   ],
   "BOX": []
  },
- "updated": "2026-11-18T13:38Z",
+ "updated": "2026-11-18T13:49Z",
  "asof": "2026-11-18T13:00Z",
- "nohrsc_through": "2026-11-18T06:00Z",
- "ndfd_archive_complete_through": "2026-11-13",
+ "nohrsc_through": "2026-11-18T12:00Z",
+ "ndfd_archive_complete_through": "2026-11-14",
  "season": "2026-27",
  "window_stats": {
   "CAR|2026-10-13T12:00Z|2026-10-14T06:00Z": {
@@ -477,5 +492,6 @@
     "event_ids": []
    }
   ]
- }
+ },
+ "ndfd_latest_run": "2026-11-14T23:47Z"
 }

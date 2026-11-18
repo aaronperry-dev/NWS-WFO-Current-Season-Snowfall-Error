@@ -366,18 +366,18 @@
      "observed_total_in": 0.582,
      "file": "2026-27/BTV_mean_error.bin",
      "stats": {
-      "events": 1,
-      "mean_error": 0.6561968326568604,
-      "mae": 0.7714236378669739,
-      "rmse": 1.110657811164856,
-      "percent_bias": 293.08447265625,
-      "hit_rate": 92.83439490445859,
-      "mean_forecast": 0.8800902366638184,
-      "mean_observed": 0.22389338910579681,
-      "mean_event_error": 0.6561968326568604,
+      "events": 2,
+      "mean_error": 0.32135769724845886,
+      "mae": 0.4990701973438263,
+      "rmse": 0.824895441532135,
+      "percent_bias": 112.5102310180664,
+      "hit_rate": 96.39065817409767,
+      "mean_forecast": 0.6069830060005188,
+      "mean_observed": 0.28562530875205994,
+      "mean_event_error": 0.32135772705078125,
       "mean_error_ci90": null,
-      "area_pct_gt_p05": 49.203821656050955,
-      "area_pct_lt_m05": 5.148619957537155,
+      "area_pct_gt_p05": 29.830148619957537,
+      "area_pct_lt_m05": 1.645435244161359,
       "cells": 1885,
       "cells_excluded_radar": 954,
       "small_sample": true
@@ -389,9 +389,22 @@
        "end": "2026-11-15T06:00Z",
        "hours": 18,
        "obs_cwa_mean": 0.312,
-       "status": "pending_forecast",
+       "status": "verified",
        "basis": "local",
-       "area_pct": 10.9
+       "area_pct": 10.9,
+       "file": "2026-27/events/BTV_2026111412_error.bin",
+       "run": "2026-11-13T09:16Z",
+       "lead_hours": 26.7,
+       "mean_forecast": 0.333875834941864,
+       "mean_observed": 0.34735724329948425,
+       "mean_error": -0.013481388799846172,
+       "mae": 0.22671671211719513,
+       "rmse": 0.3568529188632965,
+       "percent_bias": -3.881131172180176,
+       "hit_rate": 99.94692144373673,
+       "max_observed": 2.7533397674560547,
+       "max_forecast": 1.748439908027649,
+       "cells": 1884
       },
       {
        "id": "2026111212",
@@ -457,8 +470,7 @@
       }
      ],
      "counts": {
-      "verified": 1,
-      "pending_forecast": 1
+      "verified": 2
      }
     },
     "BOX": {
@@ -490,9 +502,10 @@
      "counts": {}
     }
    },
-   "updated": "2026-11-18T13:38Z",
-   "nohrsc_through": "2026-11-18T06:00Z",
-   "ndfd_archive_complete_through": "2026-11-13"
+   "updated": "2026-11-18T13:49Z",
+   "nohrsc_through": "2026-11-18T12:00Z",
+   "ndfd_archive_complete_through": "2026-11-14",
+   "ndfd_latest_run": "2026-11-14T23:47Z"
   }
  },
  "default_season": "2026-27"

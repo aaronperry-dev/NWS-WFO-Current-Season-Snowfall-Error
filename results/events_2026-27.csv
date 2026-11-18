@@ -1,5 +1,5 @@
 season,office,event_start_utc,event_end_utc,hours,status,basis,area_ge_min_pct,observed_cwa_mean_in,mean_forecast,mean_observed,mean_error,mae,rmse,percent_bias,hit_rate,max_observed,max_forecast,forecast_run_utc,lead_hours
-2026-27,BTV,2026-11-14T12:00Z,2026-11-15T06:00Z,18,pending_forecast,local,10.9,0.312,,,,,,,,,,,
+2026-27,BTV,2026-11-14T12:00Z,2026-11-15T06:00Z,18,verified,local,10.9,0.312,0.334,0.347,-0.013,0.227,0.357,-3.881,99.947,2.753,1.748,2026-11-13T09:16Z,26.7
 2026-27,BTV,2026-11-12T12:00Z,2026-11-13T12:00Z,24,verified,local,9.8,0.191,0.88,0.224,0.656,0.771,1.111,293.084,92.834,2.344,5.496,2026-11-11T23:47Z,12.2
 2026-27,CAR,2026-10-16T12:00Z,2026-10-16T18:00Z,6,verified,local,9.2,0.192,0.141,0.192,-0.052,0.099,0.231,-26.926,100.0,2.234,1.616,2026-10-15T23:47Z,12.2
 2026-27,CAR,2026-10-13T12:00Z,2026-10-14T06:00Z,18,verified,local,43.1,0.848,0.042,0.848,-0.807,0.807,1.145,-95.091,90.344,4.417,1.77,2026-10-12T13:16Z,22.7
