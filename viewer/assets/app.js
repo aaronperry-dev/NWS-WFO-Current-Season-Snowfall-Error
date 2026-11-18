@@ -305,7 +305,10 @@ function fitAll() {
   map.fitBounds([[Math.min(...state.offs.map((g) => g.north - g.ny * g.dy)), Math.min(...state.offs.map((g) => g.west))],
                  [Math.max(...state.offs.map((g) => g.north)), Math.max(...state.offs.map((g) => g.west + g.nx * g.dx))]], { padding: [10, 10], animate: false });
 }
-function initChrome() {                                              // collapsible panes, clock
+function initChrome() {                                              // collapsible panes, info panel, clock
+  const ws = document.querySelector('.ws'), ib = el('tbInfo'), showInfo = (on) => { ws.classList.toggle('no-right', !on); ib.setAttribute('aria-pressed', String(on)); if (window.NWS.map) window.NWS.map.invalidateSize(); };
+  let on = true; try { on = localStorage.getItem('nws.info') !== '0'; } catch (_) { /* storage unavailable */ }
+  showInfo(on); ib.addEventListener('click', () => { const n = ws.classList.contains('no-right'); showInfo(n); try { localStorage.setItem('nws.info', n ? '1' : '0'); } catch (_) { /* ignore */ } });
   document.querySelectorAll('.pane.collapsible').forEach((p) => {
     const b = p.querySelector('.fold button'), k = 'nws.fold.' + p.id, set = (c) => { p.classList.toggle('collapsed', c); b.setAttribute('aria-expanded', String(!c)); };
     let c = false; try { c = localStorage.getItem(k) === '1'; } catch (_) { /* storage unavailable */ }
@@ -342,7 +345,7 @@ function initMap() {
   L.control.zoom({ position: 'topright' }).addTo(map);
   let touched = false; for (const ev of ['mousedown', 'wheel', 'touchstart', 'keydown']) map.getContainer().addEventListener(ev, () => { touched = true; }, { passive: true });
   if (window.ResizeObserver) new ResizeObserver(() => { map.invalidateSize(); if (!touched && !state.sel && !state.ev) fitAll(); }).observe(el('map'));      // docks, toolbar and log change the map window's size: keep all offices in view until the user pans or zooms
-  if (m) { const fit = () => map.setMinZoom(Math.max(m.minzoom, map.getBoundsZoom(opts.maxBounds, true) - 0.5)); fit(); map.on('resize', fit); }      // never zoom out past the edge of the basemap  // draw order, bottom to top: terrain tiles (tile pane, 200) < water 250 < snowfall-error overlay 300 < borders and coasts 390 < CWA outlines 400 < place names 440 < office labels 600
+  if (m) { const fit = () => map.setMinZoom(Math.max(m.minzoom, map.getBoundsZoom(opts.maxBounds, true) - 1)); fit(); map.on('resize', fit); }      // never zoom out past the edge of the basemap  // draw order, bottom to top: terrain tiles (tile pane, 200) < water 250 < snowfall-error overlay 300 < borders and coasts 390 < CWA outlines 400 < place names 440 < office labels 600
   for (const [n, z] of [['water', 250], ['data', 300], ['lines', 390], ['baseLabels', 440]]) { const p = map.createPane(n); p.style.zIndex = z; p.style.pointerEvents = 'none'; }
   L.control.attribution({ prefix: false }).addTo(map).addAttribution('Data: NWS NDFD (NCEI), NOHRSC &middot; Terrain: <a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md" target="_blank" rel="noopener">AWS Terrain Tiles</a> &middot; Boundaries: Natural Earth &middot; CWA: NWS');
   if (m) {

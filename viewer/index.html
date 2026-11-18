@@ -26,6 +26,7 @@
   <button type="button" id="tbClear" title="Clear the selected office or event (Esc)" disabled>Clear selection</button>
   <span class="sep"></span>
   <button type="button" id="tbSample" aria-pressed="true" title="Show or hide the cursor readout">Sample</button>
+  <button type="button" id="tbInfo" aria-pressed="true" aria-controls="dockRight" title="Show or hide the whole right-hand panel (status, selection, how to read this)">Info panel</button>
   <span class="keys">Click the legend on the map to show or hide an office</span>
 </div>
 <div id="notice" class="notice" hidden></div>
@@ -53,7 +54,7 @@
       <div class="pbody" id="log"></div>
     </section>
   </main>
-  <aside class="dock right">
+  <aside class="dock right" id="dockRight">
     <section class="pane collapsible" id="paneStatus">
       <h2 class="fold"><button type="button" aria-expanded="true" aria-controls="bodyStatus">Status</button></h2>
       <div class="pbody" id="bodyStatus">

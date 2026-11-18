@@ -195,3 +195,7 @@ body.no-sample .cursor-tip { display: none; }
   .events.log td, .events.log th { padding-left: 4px; padding-right: 4px; } .events.log td { font-size: 15.5px; }
   .legend .ends { font-size: 12.5px; }
 }
+
+/* whole right-hand panel hidden: the map and log take its width */
+.ws.no-right { grid-template-columns: clamp(380px, 27vw, 560px) minmax(0, 1fr); }
+.ws.no-right .dock.right { display: none; }
