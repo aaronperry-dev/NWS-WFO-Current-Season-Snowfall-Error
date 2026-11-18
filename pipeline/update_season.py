@@ -250,13 +250,19 @@ def day_catalog(day):
         if settled: f.parent.mkdir(parents=True, exist_ok=True); json.dump(out, open(f, "w"))
     _cat_mem[day] = [(dt.datetime.strptime(a, "%Y%m%d%H%M"), b) for a, b in out]; return _cat_mem[day]
 
-def archive_complete_through(today, lag_days=None):
-    """last UTC day whose runs are completely archived: the newest day with a catalog is still filling, so it is the day before.  `lag_days` (testing) pretends the archive ends that many days before `today`"""
+def ndfd_status(today, lag_days=None):
+    """(last UTC day whose runs are completely available, issue time of the newest run).  NCEI posts a day's files in one batch, so the newest day with a catalog counts as complete once it holds a run from 23 UTC
+    or later; before that it may still be filling and the day before is the last complete one.  `lag_days` (testing) pretends the archive ends that many days before `today`"""
     d = today - dt.timedelta(days=lag_days or 0)
     for _ in range(45):
-        if day_catalog(d): return d - dt.timedelta(days=1)
+        c = day_catalog(d)
+        if c:
+            latest = max(r[0] for r in c)
+            return (d if latest.hour >= 23 else d - dt.timedelta(days=1)), latest
         d -= dt.timedelta(days=1)
-    return None
+    return None, None
+
+def archive_complete_through(today, lag_days=None): return ndfd_status(today, lag_days)[0]
 
 def find_run(target, complete_through):
     """('ok', (run time, urlPath)) | ('pending', None) - not archived yet | ('none', None) - archived but no run at or before target"""
@@ -476,8 +482,8 @@ def update(args):
     fetch_start = look - dt.timedelta(hours=2 * MAX_HOURS)                     # events starting before this are frozen (their grids are in state)
 
     # ---- 2. events per office
-    archive_day = archive_complete_through(now.date(), args.lag_days)
-    print(f"NCEI forecast archive complete through {archive_day}", flush=True)
+    archive_day, latest_run = ndfd_status(now.date(), args.lag_days)
+    print(f"NWS NDFD forecast on NCEI: complete through {archive_day}, newest run {iso(latest_run)}", flush=True)
     out_events = {}; episodes = {}; need_fc = []; pset = set(periods)
     for off in offices:
         s = series[off]; ts = sorted(t for t in s if t in pset); ser = np.array([s[t][0] if s[t][1] > 0.5 else np.nan for t in ts])
@@ -562,7 +568,7 @@ def update(args):
                 e["status"] = "verified"; e["stats"] = st_; save_grids(sdir, off, e["id"], obs, fc)
         save_series(sdir, off, series[off])
     state["offices"].update(out_events); state.setdefault("episodes", {}).update(episodes); state.pop("local_checks", None); state["updated"] = iso(_utcnow().replace(second=0, microsecond=0)); state["asof"] = iso(now)
-    state["nohrsc_through"] = iso(latest); state["ndfd_archive_complete_through"] = str(archive_day) if archive_day else None; state["season"] = season
+    state["nohrsc_through"] = iso(latest); state["ndfd_archive_complete_through"] = str(archive_day) if archive_day else None; state["ndfd_latest_run"] = iso(latest_run); state["season"] = season
     json.dump(state, open(sdir / "events.json", "w"), indent=1)
     http_summary(); return state
 
@@ -613,7 +619,7 @@ def export(season, offices):
              min_valid_event_fraction=MIN_VALID, small_sample_events=SMALL_SAMPLE,
              thresholds=dict(measurable_in=MEAS_IN, measurable_area_pct=100 * MEAS_AREA_FRAC, snowing_in_per_6h=THR_SERIES, event_total_in=THR_TOTAL, local_min_in=LOCAL_MIN_IN, local_area_pct=LOCAL_AREA_PCT, gap_hours=GAP_HOURS, max_hours=MAX_HOURS, lead_hours=list(LEADS)))
     M.setdefault("seasons", {})[season] = dict(label=f"{season_label(season)} season", window=f"Oct 1 {season[:4]} – May 31 {int(season[:4]) + 1}", offices=ofc,
-                                               updated=state.get("updated"), nohrsc_through=state.get("nohrsc_through"), ndfd_archive_complete_through=state.get("ndfd_archive_complete_through"))
+                                               updated=state.get("updated"), nohrsc_through=state.get("nohrsc_through"), ndfd_archive_complete_through=state.get("ndfd_archive_complete_through"), ndfd_latest_run=state.get("ndfd_latest_run"))
     M["default_season"] = max(M["seasons"]); json.dump(M, open(mf, "w"), indent=1)
     (ROOT / "results").mkdir(exist_ok=True)
     with open(ROOT / "results" / f"events_{season}.csv", "w", newline="") as f:

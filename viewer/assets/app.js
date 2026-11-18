@@ -158,7 +158,7 @@ function refresh() {
 function drawStatus() {
   const s = seasonData(), box = el('status'), total = state.offs.reduce((n, o) => n + o.events.length, 0), ver = state.offs.reduce((n, o) => n + o.events.filter((e) => e.status === 'verified').length, 0);
   const pend = state.offs.reduce((n, o) => n + o.events.filter((e) => e.status === 'pending_forecast').length, 0), on = state.offs.reduce((n, o) => n + o.events.filter((e) => e.status === 'ongoing').length, 0);
-  const upd = s.updated ? `Updated ${zt(new Date(s.updated))}` : '', an = s.nohrsc_through ? `NOHRSC analysis through ${zt(new Date(s.nohrsc_through))}` : '', ar = s.ndfd_archive_complete_through ? `NWS NDFD forecast available through ${MON[+s.ndfd_archive_complete_through.slice(5, 7) - 1]} ${+s.ndfd_archive_complete_through.slice(8)}` : '';
+  const upd = s.updated ? `Updated ${zt(new Date(s.updated))}` : '', an = s.nohrsc_through ? `NOHRSC analysis through ${zt(new Date(s.nohrsc_through))}` : '', ar = s.ndfd_latest_run ? `NWS NDFD forecast data through ${zt(new Date(s.ndfd_latest_run))}` : s.ndfd_archive_complete_through ? `NWS NDFD forecast data through ${MON[+s.ndfd_archive_complete_through.slice(5, 7) - 1]} ${+s.ndfd_archive_complete_through.slice(8)}` : '';
   const bar = el('statusbar'); if (bar) bar.textContent = [upd, an, ar].filter(Boolean).join('   \u00b7   ');
   let html = '';
   if (!total) {
@@ -260,7 +260,7 @@ function drawDetail() {
         <dt>Hit rate (within max(2 in, 30% of observed))</dt><dd>${pct(e.hit_rate)}</dd>
         <dt>Highest cell: observed / forecast</dt><dd>${e.max_observed.toFixed(1)} / ${e.max_forecast.toFixed(1)} in</dd>
       </dl>
-      <p>Forecast: NDFD snowfall run issued ${e.run ? esc(zt(new Date(e.run))) : '–'}${e.lead_hours != null ? ', ' + e.lead_hours + ' h before the event began' : ''}. Observed: NOHRSC analysis. Cells are inches in this event; the map color range is &plusmn;${LIM().event} in.</p>
+      <p>Forecast: NDFD snowfall run issued ${e.run ? esc(zt(new Date(e.run))) : '–'}${e.lead_hours != null ? ', ' + e.lead_hours + ' h before the event began' : ''}${e.lead_hours > 18 ? ' (older than the usual 12 h lead: the NCEI data have no later run)' : ''}. Observed: NOHRSC analysis. Cells are inches in this event; the map color range is &plusmn;${LIM().event} in.</p>
       ${radarNote(o.off, o.cells, o.cells_excluded_radar)}`;
     const back = el('evBack'); if (back) back.onclick = clearEvent; return;
   }

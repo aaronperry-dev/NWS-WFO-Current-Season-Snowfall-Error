@@ -39,7 +39,7 @@ The view is kept in the URL (`#season=2026-27&office=BOX&event=BOX-2026121206&ba
 4. **Error** = forecast − observed per cell, over the cells inside the CWA. Per event: mean forecast and observed, mean error, MAE, RMSE, percent bias, hit rate (|error| ≤ max(2 in, 30 % of observed)), and the highest cell. Season to date: the mean over verified events (a cell needs valid data in ≥ 90 % of them), with a 90 % bootstrap interval from 5 events on.
 5. **Event status:** `ongoing` → `pending_forecast` → `verified`. Others: `no_forecast` (the archive covers the day but no run covers the event) and `missing_analysis` (a NOHRSC period is missing).
 
-> **The NWS NDFD forecast data trail real time by about 5 days.** NCEI publishes the NDFD files with a delay, so a finished event is first listed as *Awaiting NWS NDFD forecast* and is verified automatically on a later run. Nothing is guessed in the meantime, and a forecast is only used once its whole day is available.
+> **The NWS NDFD forecast data trail real time by about 5 days.** NCEI publishes the NDFD files with a delay, so a finished event is first listed as *Awaiting NWS NDFD forecast* and is verified automatically on a later run. Nothing is guessed in the meantime, and a forecast is only used once its whole day is available. NCEI posts a day's files in one batch, so a day counts as available once it holds a run from 23 UTC or later; the status bar shows the issue time of the newest run. The files can also have holes (for example no runs for a day or more); the pipeline then uses the latest run issued before the target time, and the event details say so when that run is much older than the usual 12 h lead.
 
 ## Set it up on GitHub
 
