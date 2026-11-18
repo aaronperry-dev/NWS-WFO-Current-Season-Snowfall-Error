@@ -105,10 +105,75 @@
      "cells": 3780,
      "cells_excluded_radar": 0,
      "observed_total_in": 1.346,
-     "file": null,
-     "stats": null,
-     "events": [],
-     "counts": {}
+     "file": "2026-27/CAR_mean_error.bin",
+     "stats": {
+      "events": 2,
+      "mean_error": -0.4292968809604645,
+      "mae": 0.4529845118522644,
+      "rmse": 0.8262348771095276,
+      "percent_bias": -82.49046325683594,
+      "hit_rate": 95.17204587890103,
+      "mean_forecast": 0.09112316370010376,
+      "mean_observed": 0.5204199552536011,
+      "mean_event_error": -0.4292968511581421,
+      "mean_error_ci90": null,
+      "area_pct_gt_p05": 0.0,
+      "area_pct_lt_m05": 41.66444385169378,
+      "cells": 3780,
+      "cells_excluded_radar": 0,
+      "small_sample": true
+     },
+     "events": [
+      {
+       "id": "2026101612",
+       "start": "2026-10-16T12:00Z",
+       "end": "2026-10-16T18:00Z",
+       "hours": 6,
+       "obs_cwa_mean": 0.192,
+       "status": "verified",
+       "basis": "local",
+       "area_pct": 9.2,
+       "file": "2026-27/events/CAR_2026101612_error.bin",
+       "run": "2026-10-15T23:47Z",
+       "lead_hours": 12.2,
+       "mean_forecast": 0.14059485495090485,
+       "mean_observed": 0.19240011274814606,
+       "mean_error": -0.05180526152253151,
+       "mae": 0.09918054193258286,
+       "rmse": 0.23092642426490784,
+       "percent_bias": -26.925796508789062,
+       "hit_rate": 100.0,
+       "max_observed": 2.234243869781494,
+       "max_forecast": 1.6156461238861084,
+       "cells": 3749
+      },
+      {
+       "id": "2026101312",
+       "start": "2026-10-13T12:00Z",
+       "end": "2026-10-14T06:00Z",
+       "hours": 18,
+       "obs_cwa_mean": 0.848,
+       "status": "verified",
+       "basis": "local",
+       "area_pct": 43.1,
+       "file": "2026-27/events/CAR_2026101312_error.bin",
+       "run": "2026-10-12T13:16Z",
+       "lead_hours": 22.7,
+       "mean_forecast": 0.04165147244930267,
+       "mean_observed": 0.8484398722648621,
+       "mean_error": -0.806788444519043,
+       "mae": 0.806788444519043,
+       "rmse": 1.1454261541366577,
+       "percent_bias": -95.09082794189453,
+       "hit_rate": 90.34409175780208,
+       "max_observed": 4.417022705078125,
+       "max_forecast": 1.7704648971557617,
+       "cells": 3749
+      }
+     ],
+     "counts": {
+      "verified": 2
+     }
     },
     "GYX": {
      "nx": 103,
@@ -135,10 +200,63 @@
      "cells": 1885,
      "cells_excluded_radar": 954,
      "observed_total_in": 0.582,
-     "file": null,
-     "stats": null,
-     "events": [],
-     "counts": {}
+     "file": "2026-27/BTV_mean_error.bin",
+     "stats": {
+      "events": 1,
+      "mean_error": 0.6561968326568604,
+      "mae": 0.7714236378669739,
+      "rmse": 1.110657811164856,
+      "percent_bias": 293.08447265625,
+      "hit_rate": 92.83439490445859,
+      "mean_forecast": 0.8800902366638184,
+      "mean_observed": 0.22389338910579681,
+      "mean_event_error": 0.6561968326568604,
+      "mean_error_ci90": null,
+      "area_pct_gt_p05": 49.203821656050955,
+      "area_pct_lt_m05": 5.148619957537155,
+      "cells": 1885,
+      "cells_excluded_radar": 954,
+      "small_sample": true
+     },
+     "events": [
+      {
+       "id": "2026111412",
+       "start": "2026-11-14T12:00Z",
+       "end": "2026-11-15T06:00Z",
+       "hours": 18,
+       "obs_cwa_mean": 0.312,
+       "status": "pending_forecast",
+       "basis": "local",
+       "area_pct": 10.9
+      },
+      {
+       "id": "2026111212",
+       "start": "2026-11-12T12:00Z",
+       "end": "2026-11-13T12:00Z",
+       "hours": 24,
+       "obs_cwa_mean": 0.191,
+       "status": "verified",
+       "basis": "local",
+       "area_pct": 9.8,
+       "file": "2026-27/events/BTV_2026111212_error.bin",
+       "run": "2026-11-11T23:47Z",
+       "lead_hours": 12.2,
+       "mean_forecast": 0.8800902366638184,
+       "mean_observed": 0.22389338910579681,
+       "mean_error": 0.6561968326568604,
+       "mae": 0.7714236378669739,
+       "rmse": 1.110657811164856,
+       "percent_bias": 293.08447265625,
+       "hit_rate": 92.83439490445859,
+       "max_observed": 2.344067096710205,
+       "max_forecast": 5.4964165687561035,
+       "cells": 1884
+      }
+     ],
+     "counts": {
+      "verified": 1,
+      "pending_forecast": 1
+     }
     },
     "BOX": {
      "nx": 83,
@@ -156,9 +274,9 @@
      "counts": {}
     }
    },
-   "updated": "2026-11-17T20:30Z",
+   "updated": "2026-11-18T01:20Z",
    "nohrsc_through": "2026-11-17T18:00Z",
-   "ndfd_archive_complete_through": "2026-11-11"
+   "ndfd_archive_complete_through": "2026-11-13"
   }
  },
  "default_season": "2026-27"
