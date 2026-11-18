@@ -79,6 +79,8 @@
  "min_valid_event_fraction": 0.9,
  "small_sample_events": 5,
  "thresholds": {
+  "measurable_in": 0.1,
+  "measurable_area_pct": 1.0,
   "snowing_in_per_6h": 0.08,
   "event_total_in": 1.5,
   "local_min_in": 1.0,
@@ -171,6 +173,89 @@
        "cells": 3749
       }
      ],
+     "episodes": [
+      {
+       "start": "2026-11-16T06:00Z",
+       "end": "2026-11-16T12:00Z",
+       "hours": 6,
+       "mean_in": 0.031,
+       "max_in": 1.2,
+       "area_ge01_pct": 10.56,
+       "area_ge1_pct": 0.05,
+       "ongoing": false,
+       "event_ids": []
+      },
+      {
+       "start": "2026-11-14T00:00Z",
+       "end": "2026-11-14T18:00Z",
+       "hours": 18,
+       "mean_in": 0.027,
+       "max_in": 0.8,
+       "area_ge01_pct": 9.68,
+       "area_ge1_pct": 0.0,
+       "ongoing": false,
+       "event_ids": []
+      },
+      {
+       "start": "2026-11-10T12:00Z",
+       "end": "2026-11-11T06:00Z",
+       "hours": 18,
+       "mean_in": 0.205,
+       "max_in": 2.1,
+       "area_ge01_pct": 42.57,
+       "area_ge1_pct": 3.49,
+       "ongoing": false,
+       "event_ids": []
+      },
+      {
+       "start": "2026-11-08T06:00Z",
+       "end": "2026-11-08T12:00Z",
+       "hours": 6,
+       "mean_in": 0.008,
+       "max_in": 1.3,
+       "area_ge01_pct": 1.38,
+       "area_ge1_pct": 0.11,
+       "ongoing": false,
+       "event_ids": []
+      },
+      {
+       "start": "2026-10-16T06:00Z",
+       "end": "2026-10-16T18:00Z",
+       "hours": 12,
+       "mean_in": 0.209,
+       "max_in": 2.2,
+       "area_ge01_pct": 28.47,
+       "area_ge1_pct": 9.34,
+       "ongoing": false,
+       "event_ids": [
+        "2026101612"
+       ]
+      },
+      {
+       "start": "2026-10-13T12:00Z",
+       "end": "2026-10-14T06:00Z",
+       "hours": 18,
+       "mean_in": 0.841,
+       "max_in": 4.4,
+       "area_ge01_pct": 61.8,
+       "area_ge1_pct": 43.07,
+       "ongoing": false,
+       "event_ids": [
+        "2026101312"
+       ]
+      },
+      {
+       "start": "2026-10-07T06:00Z",
+       "end": "2026-10-07T12:00Z",
+       "hours": 6,
+       "mean_in": 0.003,
+       "max_in": 0.2,
+       "area_ge01_pct": 1.67,
+       "area_ge1_pct": 0.0,
+       "ongoing": false,
+       "event_ids": []
+      }
+     ],
      "counts": {
       "verified": 2
      }
@@ -188,6 +273,85 @@
      "file": null,
      "stats": null,
      "events": [],
+     "episodes": [
+      {
+       "start": "2026-11-14T06:00Z",
+       "end": "2026-11-15T12:00Z",
+       "hours": 30,
+       "mean_in": 0.074,
+       "max_in": 1.6,
+       "area_ge01_pct": 17.39,
+       "area_ge1_pct": 0.7,
+       "ongoing": false,
+       "event_ids": []
+      },
+      {
+       "start": "2026-11-12T12:00Z",
+       "end": "2026-11-13T18:00Z",
+       "hours": 30,
+       "mean_in": 0.115,
+       "max_in": 2.1,
+       "area_ge01_pct": 23.09,
+       "area_ge1_pct": 1.92,
+       "ongoing": false,
+       "event_ids": []
+      },
+      {
+       "start": "2026-11-10T18:00Z",
+       "end": "2026-11-11T00:00Z",
+       "hours": 6,
+       "mean_in": 0.006,
+       "max_in": 1.8,
+       "area_ge01_pct": 1.68,
+       "area_ge1_pct": 0.03,
+       "ongoing": false,
+       "event_ids": []
+      },
+      {
+       "start": "2026-11-08T00:00Z",
+       "end": "2026-11-08T18:00Z",
+       "hours": 18,
+       "mean_in": 0.142,
+       "max_in": 6.3,
+       "area_ge01_pct": 13.32,
+       "area_ge1_pct": 4.95,
+       "ongoing": false,
+       "event_ids": []
+      },
+      {
+       "start": "2026-10-17T06:00Z",
+       "end": "2026-10-17T12:00Z",
+       "hours": 6,
+       "mean_in": 0.011,
+       "max_in": 0.3,
+       "area_ge01_pct": 4.35,
+       "area_ge1_pct": 0.0,
+       "ongoing": false,
+       "event_ids": []
+      },
+      {
+       "start": "2026-10-16T06:00Z",
+       "end": "2026-10-16T12:00Z",
+       "hours": 6,
+       "mean_in": 0.003,
+       "max_in": 0.8,
+       "area_ge01_pct": 1.09,
+       "area_ge1_pct": 0.0,
+       "ongoing": false,
+       "event_ids": []
+      },
+      {
+       "start": "2026-10-13T12:00Z",
+       "end": "2026-10-13T18:00Z",
+       "hours": 6,
+       "mean_in": 0.032,
+       "max_in": 2.5,
+       "area_ge01_pct": 5.57,
+       "area_ge1_pct": 0.8,
+       "ongoing": false,
+       "event_ids": []
+      }
+     ],
      "counts": {}
     },
     "BTV": {
@@ -253,6 +417,45 @@
        "cells": 1884
       }
      ],
+     "episodes": [
+      {
+       "start": "2026-11-14T06:00Z",
+       "end": "2026-11-15T18:00Z",
+       "hours": 36,
+       "mean_in": 0.372,
+       "max_in": 2.8,
+       "area_ge01_pct": 55.38,
+       "area_ge1_pct": 11.78,
+       "ongoing": false,
+       "event_ids": [
+        "2026111412"
+       ]
+      },
+      {
+       "start": "2026-11-12T06:00Z",
+       "end": "2026-11-13T18:00Z",
+       "hours": 36,
+       "mean_in": 0.229,
+       "max_in": 2.4,
+       "area_ge01_pct": 26.84,
+       "area_ge1_pct": 10.13,
+       "ongoing": false,
+       "event_ids": [
+        "2026111212"
+       ]
+      },
+      {
+       "start": "2026-10-17T06:00Z",
+       "end": "2026-10-17T12:00Z",
+       "hours": 6,
+       "mean_in": 0.005,
+       "max_in": 0.5,
+       "area_ge01_pct": 2.49,
+       "area_ge1_pct": 0.0,
+       "ongoing": false,
+       "event_ids": []
+      }
+     ],
      "counts": {
       "verified": 1,
       "pending_forecast": 1
@@ -271,10 +474,23 @@
      "file": null,
      "stats": null,
      "events": [],
+     "episodes": [
+      {
+       "start": "2026-11-13T00:00Z",
+       "end": "2026-11-13T18:00Z",
+       "hours": 18,
+       "mean_in": 0.063,
+       "max_in": 2.8,
+       "area_ge01_pct": 11.29,
+       "area_ge1_pct": 1.82,
+       "ongoing": false,
+       "event_ids": []
+      }
+     ],
      "counts": {}
     }
    },
-   "updated": "2026-11-18T01:20Z",
+   "updated": "2026-11-18T01:30Z",
    "nohrsc_through": "2026-11-17T18:00Z",
    "ndfd_archive_complete_through": "2026-11-13"
   }
