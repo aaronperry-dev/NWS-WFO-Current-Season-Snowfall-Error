@@ -80,11 +80,11 @@ function toFloat32LE(buf) {
 }
 
 /* ---------- state ---------- */
-const state = { M: null, season: null, offs: [], grids: [], ev: null, evGrid: null, sel: null, token: 0, base: 'dark', opacity: 0.85 };
+const state = { M: null, season: null, offs: [], grids: [], ev: null, evGrid: null, sel: null, token: 0, base: 'terrain', opacity: 0.85, sample: true };
 let waterGeo, prodBox, lineSets = [], map, errLayer, terrainLayer, bm = {}, baseLabelLayer, cwaGeo, cwaCasing, labelLayer, tipBox, legendBox, cwaData;
 /* Our own basemap (built by scripts/build_basemap.py): shaded-relief terrain tiles + water / border / state-line vectors + labels, all served from basemap/. */
 const BASE_DIR = 'basemap/', LAND_PLAIN = '#eef0ea', WATER_FILL = '#c4d8e4', LAND_DARK = '#06090d', WATER_DARK = '#0a1a29';
-const BASEMAPS = { dark: { name: 'Dark (AWIPS-style)' }, terrain: { name: 'Terrain (shaded relief)' }, plain: { name: 'Plain (no terrain)' } };
+const BASEMAPS = { terrain: { name: 'Terrain (shaded relief)' }, plain: { name: 'Plain (no terrain)' }, dark: { name: 'Dark (AWIPS-style)' } };
 const LINE_DARK = { coast: { color: '#8ea3b4', weight: 1 }, state: { color: '#8f99a3', weight: 1.2, dashArray: '5 3' }, border: { color: '#d3dbe2', weight: 2.2 } };
 const LINE_STYLE = { coast: { color: '#5f7a8a', weight: 1 }, state: { color: '#59626b', weight: 1.1, dashArray: '5 3' }, border: { color: '#2c343b', weight: 2 } };
 const STATUS_TEXT = { ongoing: 'In progress', pending_forecast: 'Awaiting forecast archive', no_forecast: 'No forecast found', missing_analysis: 'Analysis missing' };
@@ -100,10 +100,10 @@ function dayRange(a, b) {                                       // 'Nov 12', 'No
 }
 const evTitle = (ev) => `${zt(new Date(ev.start))} to ${zt(new Date(ev.end))}`;
 const localHelp = (e) => `Localized event: about ${Math.round(e.area_pct)}% of the CWA received at least ${state.M.thresholds.local_min_in} in, but the CWA-mean total (${e.obs_cwa_mean.toFixed(2)} in) is below the ${state.M.thresholds.event_total_in} in threshold.`;
-const localTag = (e) => e.basis === 'local' ? ` <span class="loc" title="${esc(localHelp(e))}">localized</span>` : '';
+const localTag = (e) => e.basis === 'local' ? ` <span class="loc" title="${esc(localHelp(e))}">Localized</span>` : '';
 
 function setTitle(label) {                                   // 'NWS WFO Snowfall Forecast Error: 2026–27 Winter Season' (page title and header follow the selected season)
-  const t = `NWS WFO Snowfall Forecast Error: ${String(label).replace(/\s*season$/i, '')} Winter Season`; document.title = t; const h = document.querySelector('.topbar h1'); if (h) h.textContent = t;
+  const t = `NWS WFO Snowfall Forecast Error: ${String(label).replace(/\s*season$/i, '')} Winter Season`; document.title = t; const h = document.querySelector('.menubar h1'); if (h) h.textContent = t;
 }
 
 function notice(msg) { const n = el('notice'); n.hidden = !msg; n.textContent = msg || ''; }
@@ -125,6 +125,7 @@ function readHash() { const p = new URLSearchParams(location.hash.slice(1)); ret
 function writeHash() {
   const p = new URLSearchParams({ season: state.season, base: state.base, op: state.opacity.toFixed(2) }); if (state.sel) p.set('office', state.sel); if (state.ev) p.set('event', state.ev.off + '-' + state.ev.id);
   history.replaceState(null, '', '#' + p.toString());
+  const clr = el('tbClear'); if (clr) clr.disabled = !(state.sel || state.ev);
 }
 
 /* ---------- data loading ---------- */
@@ -157,7 +158,7 @@ function refresh() {
 function drawStatus() {
   const s = seasonData(), box = el('status'), total = state.offs.reduce((n, o) => n + o.events.length, 0), ver = state.offs.reduce((n, o) => n + o.events.filter((e) => e.status === 'verified').length, 0);
   const pend = state.offs.reduce((n, o) => n + o.events.filter((e) => e.status === 'pending_forecast').length, 0), on = state.offs.reduce((n, o) => n + o.events.filter((e) => e.status === 'ongoing').length, 0);
-  const upd = s.updated ? `Updated ${zt(new Date(s.updated))}` : '', an = s.nohrsc_through ? `NOHRSC analysis through ${zt(new Date(s.nohrsc_through))}` : '', ar = s.ndfd_archive_complete_through ? `forecast archive complete through ${MON[+s.ndfd_archive_complete_through.slice(5, 7) - 1]} ${+s.ndfd_archive_complete_through.slice(8)}` : '';
+  const upd = s.updated ? `Updated ${zt(new Date(s.updated))}` : '', an = s.nohrsc_through ? `NOHRSC analysis through ${zt(new Date(s.nohrsc_through))}` : '', ar = s.ndfd_archive_complete_through ? `Forecast archive complete through ${MON[+s.ndfd_archive_complete_through.slice(5, 7) - 1]} ${+s.ndfd_archive_complete_through.slice(8)}` : '';
   const bar = el('statusbar'); if (bar) bar.textContent = [upd, an, ar].filter(Boolean).join('   \u00b7   ');
   let html = '';
   if (!total) {
@@ -200,11 +201,11 @@ function drawLog() {
   for (const o of state.offs) if (!state.sel || state.sel === o.off) for (const x of (o.episodes || [])) rows.push({ o, x });
   rows.sort((a, b) => b.x.start.localeCompare(a.x.start) || a.o.off.localeCompare(b.o.off));
   const nev = rows.filter((r) => r.x.event_ids && r.x.event_ids.length).length;
-  el('logTitle').textContent = `Snowfall log: ${state.sel || 'all WFOs'} — ${rows.length} measurable episode${rows.length === 1 ? '' : 's'}, ${nev} counted as event${nev === 1 ? '' : 's'}`;
+  el('logTitle').textContent = `Snowfall log: ${state.sel || 'All WFOs'} — ${rows.length} measurable episode${rows.length === 1 ? '' : 's'}, ${nev} counted as event${nev === 1 ? '' : 's'}`;
   if (!rows.length) { box.innerHTML = '<p class="hint">No measurable snowfall yet this season.</p>'; return; }
   box.innerHTML = `<table class="events log"><thead><tr><th>Office</th><th>Snowfall (UTC)</th><th>Event?</th><th title="CWA-mean total, inches">Mean (in)</th><th title="Highest cell, inches">Peak (in)</th><th title="Share of the CWA with at least ${th.local_min_in} in">&ge;${th.local_min_in} in</th></tr></thead><tbody>${rows.map(({ o, x }) => {
     const m = state.M.offices[o.off], evs = (x.event_ids || []).map((id) => o.events.find((e) => e.id === id)).filter(Boolean), ver = evs.find((e) => e.status === 'verified'), other = evs[0];
-    let tag = '<span class="na">not an event</span>', cls = 'lg', attr = '';
+    let tag = '<span class="na">Not an event</span>', cls = 'lg', attr = '';
     if (x.ongoing) tag = '<span class="st st-ongoing">In progress</span>';
     else if (ver) { tag = '<span class="st st-verified">Verified event</span>'; cls = 'lg click'; attr = ` data-off="${o.off}" data-id="${ver.id}" tabindex="0" title="Show the error map of this event"`; }
     else if (other) tag = `<span class="st st-${esc(other.status)}">${esc(STATUS_TEXT[other.status] || other.status)}</span>`;
@@ -216,9 +217,9 @@ function drawProduct() {
   if (!prodBox || !state.M) return; const S = seasonData();
   if (state.ev) { const e = eventOf(state.ev.off, state.ev.id), m = state.M.offices[state.ev.off];
     prodBox.innerHTML = `<div class="pl-h"><i class="chip" style="background:${esc(m.color)}"></i>${esc(state.ev.off)} event error &middot; ${esc(evTitle(e))}</div><div>Forecast &minus; observed snowfall, inches &middot; mean ${fmt(e.mean_error)} in</div>`; return; }
-  prodBox.innerHTML = `<div class="pl-h">${esc(S.label)} &middot; season-to-date mean error</div><div>Forecast &minus; observed snowfall, inches per event</div>` + state.offs.map((o) => {
+  prodBox.innerHTML = `<div class="pl-h">Season-to-date mean error &middot; ${esc(S.label)}</div><div>Forecast &minus; observed snowfall, inches per event</div>` + state.offs.map((o) => {
     const g = state.grids.find((x) => x.off === o.off), vis = !g || g.visible, m = state.M.offices[o.off], ver = o.events.filter((e) => e.status === 'verified').length;
-    return `<div class="pl-o${vis ? '' : ' off'}"><i class="chip" style="background:${esc(m.color)}"></i>${esc(o.off)}&nbsp; ${o.stats ? fmt(o.stats.mean_error) + ' in &middot; ' + ver + ' event' + (ver === 1 ? '' : 's') : 'no verified events'}</div>`;
+    return `<div class="pl-o${vis ? '' : ' off'}" data-off="${esc(o.off)}" title="Click to ${vis ? 'hide' : 'show'} ${esc(o.off)}"><i class="chip" style="background:${esc(m.color)}"></i>${esc(o.off)}&nbsp; ${o.stats ? fmt(o.stats.mean_error) + ' in &middot; ' + ver + ' event' + (ver === 1 ? '' : 's') : 'No verified events'}</div>`;
   }).join('');
 }
 function drawLabels() {
@@ -227,7 +228,7 @@ function drawLabels() {
     const off = f.properties.cwa, o = offEntry(off); if (!o) continue; const g = state.grids.find((x) => x.off === off); if (g && !g.visible && !state.ev) continue;
     let sub = '';
     if (state.ev) { if (state.ev.off !== off) continue; sub = `${fmt(eventOf(off, state.ev.id).mean_error)} in`; }
-    else sub = o.stats ? `${fmt(o.stats.mean_error)} in` : '<i>no events</i>';
+    else sub = o.stats ? `${fmt(o.stats.mean_error)} in` : '<i>No events</i>';
     const [lo, la] = f.properties.label;
     labelLayer.addLayer(L.marker([la, lo], { interactive: false, keyboard: false, icon: L.divIcon({ className: '', iconSize: [0, 0], html: `<div class="cwa-label">${esc(off)}<span>${sub}</span></div>` }) }));
   }
@@ -281,10 +282,10 @@ function drawDetail() {
 }
 function drawLegend() {
   const lay = state.ev ? state.M.layers.event : state.M.layers.season, L = lay.vmax, anyEx = activeGrids().some((g) => g.cells_excluded_radar > 0);
-  const tk = [-L, -L / 2, 0, L / 2, L], units = state.ev ? 'inches of snow in this event' : 'inches of snow per event, season to date';
+  const tk = [-L, -L / 2, 0, L / 2, L], units = state.ev ? 'Inches of snow in this event' : 'Inches of snow per event, season to date';
   legendBox.innerHTML = `<div class="ttl">${esc(lay.label)}</div><div>${esc(units)}</div><canvas width="270" height="14"></canvas>
     <div class="ticks">${tk.map((t, i) => `<span>${i === 0 ? '≤ ' : i === 4 ? '≥ ' : ''}${t === 0 ? '0' : fmt(t, 0)}</span>`).join('')}</div>
-    <div class="ends"><span>forecast too low</span><span>forecast too high</span></div>
+    <div class="ends"><span>Forecast too low</span><span>Forecast too high</span></div>
     ${anyEx ? '<div class="hatch"><i></i>Excluded: radar beam-blockage artifact</div>' : ''}`;
   const c = legendBox.querySelector('canvas'), x = c.getContext('2d');
   for (let i = 0; i < c.width; i++) { const [r, g, b] = colorOf(-L + 2 * L * i / (c.width - 1), L); x.fillStyle = `rgb(${r},${g},${b})`; x.fillRect(i, 0, 1, c.height); }
@@ -299,6 +300,20 @@ function select(off, zoom = true) {
 function deselect() { if (state.ev) { clearEvent(); return; } if (state.sel) { state.sel = null; styleCwa(); drawTable(); drawEvents(); drawLog(); drawProduct(); drawDetail(); writeHash(); } }
 
 /* ---------- setup ---------- */
+function fitAll() {
+  if (!state.offs.length || !map) return;
+  map.fitBounds([[Math.min(...state.offs.map((g) => g.north - g.ny * g.dy)), Math.min(...state.offs.map((g) => g.west))],
+                 [Math.max(...state.offs.map((g) => g.north)), Math.max(...state.offs.map((g) => g.west + g.nx * g.dx))]], { padding: [10, 10], animate: false });
+}
+function initChrome() {                                              // collapsible panes, clock
+  document.querySelectorAll('.pane.collapsible').forEach((p) => {
+    const b = p.querySelector('.fold button'), k = 'nws.fold.' + p.id, set = (c) => { p.classList.toggle('collapsed', c); b.setAttribute('aria-expanded', String(!c)); };
+    let c = false; try { c = localStorage.getItem(k) === '1'; } catch (_) { /* storage unavailable */ }
+    set(c); b.addEventListener('click', () => { const n = !p.classList.contains('collapsed'); set(n); try { localStorage.setItem(k, n ? '1' : '0'); } catch (_) { /* ignore */ } });
+  });
+  const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], clk = el('sbClock'), tick = () => { const d = new Date(); clk.textContent = `${DOW[d.getUTCDay()]} ${p2(d.getUTCDate())} ${MON[d.getUTCMonth()]} ${d.getUTCFullYear()} ${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}:${p2(d.getUTCSeconds())}Z`; };
+  tick(); setInterval(tick, 1000);
+}
 async function loadBasemapFiles() {
   try {
     const [meta, water, lines, labels] = await Promise.all(['meta.json', 'water.geojson', 'lines.geojson', 'labels.json'].map((f) => getJson(BASE_DIR + f)));
@@ -306,7 +321,7 @@ async function loadBasemapFiles() {
   } catch (err) { bm = {}; notice('Basemap files missing: run scripts/build_basemap.py (' + err.message + ')'); }
 }
 function setBasemap(key) {
-  if (!BASEMAPS[key]) key = 'dark'; state.base = key;
+  if (!BASEMAPS[key]) key = 'terrain'; state.base = key;
   if (terrainLayer) { if (key === 'terrain') { if (!map.hasLayer(terrainLayer)) terrainLayer.addTo(map); } else map.removeLayer(terrainLayer); }
   const dk = key === 'dark'; document.body.classList.toggle('dark-map', dk);
   el('map').style.background = key === 'terrain' ? '#d9dfd0' : dk ? LAND_DARK : LAND_PLAIN; el('basemap').value = key;
@@ -324,8 +339,10 @@ function initMap() {
   const m = bm.meta, opts = { zoomControl: false, zoomSnap: 0.25, worldCopyJump: false, attributionControl: false, minZoom: m ? m.minzoom : 5, maxZoom: m ? m.maxzoom + 1 : 10 };
   if (m) { opts.maxBounds = L.latLngBounds(m.bounds); opts.maxBoundsViscosity = 1.0; }
   map = L.map('map', opts).setView([44.6, -71.3], 7);
-  if (window.ResizeObserver) new ResizeObserver(() => map.invalidateSize()).observe(el('map'));      // docks and the log change the map window's size L.control.zoom({ position: 'topright' }).addTo(map);
-  if (m) { const fit = () => map.setMinZoom(Math.max(m.minzoom, map.getBoundsZoom(opts.maxBounds, true) - 0.25)); fit(); map.on('resize', fit); }      // never zoom out past the edge of the basemap  // draw order, bottom to top: terrain tiles (tile pane, 200) < water 250 < snowfall-error overlay 300 < borders and coasts 390 < CWA outlines 400 < place names 440 < office labels 600
+  L.control.zoom({ position: 'topright' }).addTo(map);
+  let touched = false; for (const ev of ['mousedown', 'wheel', 'touchstart', 'keydown']) map.getContainer().addEventListener(ev, () => { touched = true; }, { passive: true });
+  if (window.ResizeObserver) new ResizeObserver(() => { map.invalidateSize(); if (!touched && !state.sel && !state.ev) fitAll(); }).observe(el('map'));      // docks, toolbar and log change the map window's size: keep all offices in view until the user pans or zooms
+  if (m) { const fit = () => map.setMinZoom(Math.max(m.minzoom, map.getBoundsZoom(opts.maxBounds, true) - 0.5)); fit(); map.on('resize', fit); }      // never zoom out past the edge of the basemap  // draw order, bottom to top: terrain tiles (tile pane, 200) < water 250 < snowfall-error overlay 300 < borders and coasts 390 < CWA outlines 400 < place names 440 < office labels 600
   for (const [n, z] of [['water', 250], ['data', 300], ['lines', 390], ['baseLabels', 440]]) { const p = map.createPane(n); p.style.zIndex = z; p.style.pointerEvents = 'none'; }
   L.control.attribution({ prefix: false }).addTo(map).addAttribution('Data: NWS NDFD (NCEI), NOHRSC &middot; Terrain: <a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md" target="_blank" rel="noopener">AWS Terrain Tiles</a> &middot; Boundaries: Natural Earth &middot; CWA: NWS');
   if (m) {
@@ -340,6 +357,10 @@ function initMap() {
   labelLayer = L.layerGroup().addTo(map);
   legendBox = L.control({ position: 'bottomright' }); legendBox.onAdd = () => L.DomUtil.create('div', 'legend'); legendBox.addTo(map); legendBox = legendBox.getContainer();
   const pc = L.control({ position: 'topleft' }); pc.onAdd = () => L.DomUtil.create('div', 'prodlabel'); pc.addTo(map); prodBox = pc.getContainer();
+  L.DomEvent.disableClickPropagation(prodBox);
+  prodBox.addEventListener('click', (e) => { const r = e.target.closest('.pl-o'); const g = r && state.grids.find((x) => x.off === r.dataset.off); if (g) { g.visible = !g.visible; refresh(); } });      // click a legend line to show or hide that office, as in CAVE
+  const sbPos = el('sbPos'); map.getContainer().addEventListener('mousemove', (e) => { const ll = map.mouseEventToLatLng(e); sbPos.textContent = `${Math.abs(ll.lat).toFixed(3)}°${ll.lat >= 0 ? 'N' : 'S'} ${Math.abs(ll.lng).toFixed(3)}°${ll.lng <= 0 ? 'W' : 'E'}`; });
+  map.getContainer().addEventListener('mouseleave', () => { sbPos.innerHTML = '&nbsp;'; });
 
   // pointer tooltip: follows the cursor over the map
   const tipHtml = (ll) => {
@@ -347,13 +368,13 @@ function initMap() {
     if (!s) return `<div class="tip-none">${activeGrids().length ? 'No data' : 'No verified events yet'}</div><div class="tip-pos">${pos}</div>`;
     const o = state.M.offices[s.off] || {}, head = `<div class="tip-head"><i class="chip" style="background:${esc(o.color || '#888')}"></i><b>${esc(s.off)}</b>${o.name ? ' <span>' + esc(o.name) + '</span>' : ''}</div>`;
     if (s.v === EXCLUDED) return `${head}<div class="tip-none">Excluded: radar beam-blockage artifact</div><div class="tip-pos">${pos}</div>`;
-    return `${head}<div class="tip-val"><span class="val" style="${chipStyle(s.v, s.lim)}">${fmt(s.v)} in</span> ${s.event ? 'error in this event' : 'mean error per event'}</div><div class="tip-pos">${pos}</div>`;
+    return `${head}<div class="tip-val"><span class="val" style="${chipStyle(s.v, s.lim)}">${fmt(s.v)} in</span> ${s.event ? 'Error in this event' : 'Mean error per event'}</div><div class="tip-pos">${pos}</div>`;
   };
   const touch = window.matchMedia('(hover: none)').matches, box = map.getContainer(); let dragging = false, last = null;
   tipBox = L.DomUtil.create('div', 'cursor-tip', box); tipBox.hidden = true;
   const hideTip = () => { tipBox.hidden = true; };
   const showTip = (cp) => {
-    last = cp; tipBox.innerHTML = tipHtml(map.containerPointToLatLng(cp)); tipBox.hidden = false;
+    if (!state.sample) return; last = cp; tipBox.innerHTML = tipHtml(map.containerPointToLatLng(cp)); tipBox.hidden = false;
     const S = map.getSize(), w = tipBox.offsetWidth, h = tipBox.offsetHeight; let x = cp.x + 16, y = cp.y + 18;
     if (x + w > S.x - 6) x = cp.x - w - 12; if (y + h > S.y - 6) y = cp.y - h - 12;
     tipBox.style.transform = `translate(${Math.max(4, Math.round(x))}px, ${Math.max(4, Math.round(y))}px)`;
@@ -376,20 +397,26 @@ async function initCwa() {
 }
 
 async function main() {
+  initChrome();
   const inline = el('manifest'); try { state.M = inline ? JSON.parse(inline.textContent) : await getJson(url.manifest()); } catch (err) { notice('No data found. Run pipeline/update_season.py first.'); return; }
-  const h = readHash(), seasons = Object.keys(state.M.seasons).sort().reverse();
+  const h = readHash(), seasons = Object.keys(state.M.seasons).sort().reverse(), theme0 = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+  el('theme').value = theme0;
   if (isFinite(h.op)) state.opacity = Math.min(1, Math.max(0, h.op));
   el('season').innerHTML = seasons.map((s) => `<option value="${esc(s)}">${esc(state.M.seasons[s].label)}</option>`).join('');
   el('basemap').innerHTML = Object.entries(BASEMAPS).map(([k, b]) => `<option value="${k}">${esc(b.name)}</option>`).join('');
   el('opacity').value = state.opacity; el('opacityOut').textContent = Math.round(state.opacity * 100) + '%';
   await loadBasemapFiles();
   initMap(); window.NWS.map = map; window.NWS.state = state;      // exposed for embedding and testing
-  setBasemap(h.base || 'dark');
+  setBasemap(h.base || (theme0 === 'dark' ? 'dark' : 'terrain'));
   const season = seasons.includes(h.season) ? h.season : (state.M.default_season || seasons[0]); el('season').value = season;
   if (h.office) state.sel = h.office.toUpperCase();
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') deselect(); });
   el('season').addEventListener('change', (e) => loadSeason(e.target.value));
   el('basemap').addEventListener('change', (e) => setBasemap(e.target.value));
+  el('theme').addEventListener('change', (e) => { const t = e.target.value === 'dark' ? 'dark' : 'light'; document.documentElement.dataset.theme = t; try { localStorage.setItem('nws.theme', t); } catch (_) { /* ignore */ }
+    if (t === 'dark') setBasemap('dark'); else if (state.base === 'dark') setBasemap('terrain'); });
+  el('tbHome').addEventListener('click', fitAll); el('tbClear').addEventListener('click', deselect);
+  el('tbSample').addEventListener('click', () => { state.sample = !state.sample; el('tbSample').setAttribute('aria-pressed', String(state.sample)); document.body.classList.toggle('no-sample', !state.sample); if (!state.sample && tipBox) tipBox.hidden = true; });
   el('opacity').addEventListener('input', (e) => { state.opacity = parseFloat(e.target.value); errLayer.setOpacity(state.opacity); el('opacityOut').textContent = Math.round(state.opacity * 100) + '%'; writeHash(); });
   el('offices').addEventListener('change', (e) => { const off = e.target.dataset && e.target.dataset.vis; if (!off) return; state.grids.find((g) => g.off === off).visible = e.target.checked; refresh(); });
   el('offices').addEventListener('click', (e) => { if (e.target.closest('input')) return; const tr = e.target.closest('tr.row'); if (tr) { select(tr.dataset.off, true); toMap(); } });
@@ -405,8 +432,7 @@ async function main() {
   const ev = h.event && h.event.match(/^([A-Za-z]+)-(\d+)$/);
   if (ev && eventOf(ev[1].toUpperCase(), ev[2])) await showEvent(ev[1].toUpperCase(), ev[2]);
   else if (state.sel && offEntry(state.sel)) select(state.sel, true);
-  else if (state.offs.length) map.fitBounds([[Math.min(...state.offs.map((g) => g.north - g.ny * g.dy)), Math.min(...state.offs.map((g) => g.west))],
-                                           [Math.max(...state.offs.map((g) => g.north)), Math.max(...state.offs.map((g) => g.west + g.nx * g.dx))]], { padding: [10, 10] });
+  else fitAll();
   drawLabels(); styleCwa();
 }
 main();

@@ -17,3 +17,9 @@ Run locally: `php -S localhost:8000 -t viewer`, or copy `index.html`, `assets`, 
 URL state: `#season=2026-27&office=BOX&event=BOX-2026121206&base=terrain&op=0.85`. Esc clears the selection.
 
 `.bin` format: float32 little-endian, row-major, row 0 = north edge, no header; `NaN` = no data, `-999` = radar-excluded cell. Geometry is in `data/manifest.json`.
+
+## Layout and display
+
+The page follows the layout of an AWIPS/CAVE (D2D) workstation: a menu bar (season, theme, basemap, overlay opacity), a toolbar (Home, Clear selection, Sample), docked panes around a central map, a product legend on the map (click an office line to show or hide it), a colour bar, a cursor readout (toggle with Sample), and a status bar with the cursor position and the current UTC time.
+
+The light theme is the default; choose Dark in the menu bar for the classic dark display (the choice is remembered in the browser). The Status and How to read this panes collapse; their state is remembered too.

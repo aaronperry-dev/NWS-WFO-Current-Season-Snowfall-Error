@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NWS WFO Snowfall Forecast Error: 2026–27 Winter Season</title>
 <link rel="icon" href="data:,">
+<script>try { document.documentElement.dataset.theme = localStorage.getItem("nws.theme") === "dark" ? "dark" : "light"; } catch (e) { document.documentElement.dataset.theme = "light"; }</script>
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="assets/style.css?v=__V__">
 </head>
@@ -14,11 +15,19 @@
   <h1>NWS WFO Snowfall Forecast Error: 2026–27 Winter Season</h1>
   <nav class="menus">
     <label>Season <select id="season"></select></label>
+    <label>Theme <select id="theme"><option value="light">Light</option><option value="dark">Dark</option></select></label>
     <label>Basemap <select id="basemap"></select></label>
     <label>Overlay opacity <input id="opacity" type="range" min="0" max="1" step="0.05" value="0.85"> <output id="opacityOut">85%</output></label>
   </nav>
   <p class="offs">NWS Boston/Norton &middot; Gray/Portland &middot; Caribou &middot; Burlington &middot; <span id="topSeason"></span></p>
 </header>
+<div class="toolbar" role="toolbar" aria-label="Map tools">
+  <button type="button" id="tbHome" title="Zoom to all offices">Home</button>
+  <button type="button" id="tbClear" title="Clear the selected office or event (Esc)" disabled>Clear selection</button>
+  <span class="sep"></span>
+  <button type="button" id="tbSample" aria-pressed="true" title="Show or hide the cursor readout">Sample</button>
+  <span class="keys">Click the legend on the map to show or hide an office</span>
+</div>
 <div id="notice" class="notice" hidden></div>
 <div class="ws">
   <aside class="dock left">
@@ -45,17 +54,17 @@
     </section>
   </main>
   <aside class="dock right">
-    <section class="pane">
-      <h2>Status</h2>
-      <div class="pbody">
+    <section class="pane collapsible" id="paneStatus">
+      <h2 class="fold"><button type="button" aria-expanded="true" aria-controls="bodyStatus">Status</button></h2>
+      <div class="pbody" id="bodyStatus">
         <p class="sub">How well the official WFO snowfall forecasts did in each snow event this winter: forecast &minus; observed, season to date and event by event, on the native ~4&nbsp;km grid of the observations.</p>
         <div id="status" class="status"></div>
       </div>
     </section>
     <section id="detail" class="pane detail" hidden></section>
-    <section class="pane">
-      <h2>How to read this</h2>
-      <div class="pbody about">
+    <section class="pane collapsible" id="paneHelp">
+      <h2 class="fold"><button type="button" aria-expanded="true" aria-controls="bodyHelp">How to read this</button></h2>
+      <div class="pbody about" id="bodyHelp">
         <ul>
           <li><b>Red</b> = the forecast was too high; <b>blue</b> = too low. Each cell is forecast &minus; observed snowfall in inches. The map shows the season-to-date mean over all verified events (color range &plusmn;2&nbsp;in), or one event when you pick it (&plusmn;6&nbsp;in).</li>
           <li><b>Event</b>: a stretch of snow with a CWA-mean total of at least 1.5&nbsp;in (6-h periods of 0.08&nbsp;in or more, gaps up to 12&nbsp;h merged, split at 48&nbsp;h). Snow that stays local also counts when at least 5% of the CWA gets 1&nbsp;in or more; these are tagged <b>localized</b>. Times are UTC.</li>
@@ -68,7 +77,7 @@
     </section>
   </aside>
 </div>
-<footer id="statusbar" class="statusbar"></footer>
+<footer class="statusbar"><span id="statusbar"></span><span class="sbr"><span id="sbPos" title="Cursor position">&nbsp;</span><span id="sbClock" title="Current time, UTC"></span></span></footer>
 <script>window.NWS = { dataDir: 'data/' };</script>
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="assets/app.js?v=__V__"></script>
