@@ -1,6 +1,6 @@
 # Keeps the season up to date and publishes the viewer to GitHub Pages.
 #   * every 6 hours from October to May (NOHRSC publishes a new 6-h analysis every 6 hours): run the pipeline, commit changed state/data, deploy
-#   * on a push that changes the viewer: deploy only (the data already in the repository)
+#   * on a push that changes the viewer or the pipeline: run the same update, so new code and data always go out together
 #   * "Run workflow" in the Actions tab runs the pipeline on demand
 # One-time setup: Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
 name: Update season data and deploy viewer
@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ["viewer/**", ".github/workflows/update.yml"]
+    paths: ["viewer/**", "pipeline/**", ".github/workflows/update.yml"]
 
 permissions:
   contents: write      # commit the updated state and viewer data
@@ -37,17 +37,14 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        if: github.event_name != 'push'
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq libeccodes-dev || true
           pip install -r requirements.txt
 
       - name: Update the current season
-        if: github.event_name != 'push'
         run: python pipeline/update_season.py --workdir work
 
       - name: Commit changed state and viewer data
-        if: github.event_name != 'push'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
