@@ -99,7 +99,7 @@ function dayRange(a, b) {                                       // 'Nov 12', 'No
 }
 const evTitle = (ev) => `${zt(new Date(ev.start))} to ${zt(new Date(ev.end))}`;
 const localHelp = (e) => `Localized event: about ${Math.round(e.area_pct)}% of the CWA received at least ${state.M.thresholds.local_min_in} in, but the CWA-mean total (${e.obs_cwa_mean.toFixed(2)} in) is below the ${state.M.thresholds.event_total_in} in threshold.`;
-const localTag = (e) => e.basis === 'local' ? ` <span class="loc" title="${esc(localHelp(e))}">local</span>` : '';
+const localTag = (e) => e.basis === 'local' ? ` <span class="loc" title="${esc(localHelp(e))}">localized</span>` : '';
 
 function setTitle(label) {                                   // 'NWS WFO Snowfall Forecast Error: 2026–27 Winter Season' (page title and header follow the selected season)
   const t = `NWS WFO Snowfall Forecast Error: ${String(label).replace(/\s*season$/i, '')} Winter Season`; document.title = t; const h = document.querySelector('.topbar h1'); if (h) h.textContent = t;
@@ -375,9 +375,10 @@ async function main() {
   el('basemap').addEventListener('change', (e) => setBasemap(e.target.value));
   el('opacity').addEventListener('input', (e) => { state.opacity = parseFloat(e.target.value); errLayer.setOpacity(state.opacity); el('opacityOut').textContent = Math.round(state.opacity * 100) + '%'; writeHash(); });
   el('offices').addEventListener('change', (e) => { const off = e.target.dataset && e.target.dataset.vis; if (!off) return; state.grids.find((g) => g.off === off).visible = e.target.checked; refresh(); });
-  el('offices').addEventListener('click', (e) => { if (e.target.closest('input')) return; const tr = e.target.closest('tr.row'); if (tr) select(tr.dataset.off, true); });
-  el('offices').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('tr.row')) select(e.target.dataset.off, true); });
-  const pickEvent = (tr) => { if (!tr || tr.classList.contains('pend')) return; const { off, id } = tr.dataset; if (state.ev && state.ev.off === off && state.ev.id === id) clearEvent(); else showEvent(off, id); };
+  el('offices').addEventListener('click', (e) => { if (e.target.closest('input')) return; const tr = e.target.closest('tr.row'); if (tr) { select(tr.dataset.off, true); toMap(); } });
+  el('offices').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('tr.row')) { select(e.target.dataset.off, true); toMap(); } });
+  const toMap = () => { const r = el('map').getBoundingClientRect(); if (r.top < 0 || r.bottom > innerHeight + 4) el('map').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  const pickEvent = (tr) => { if (!tr || tr.classList.contains('pend')) return; const { off, id } = tr.dataset; if (state.ev && state.ev.off === off && state.ev.id === id) clearEvent(); else { showEvent(off, id); toMap(); } };
   el('events').addEventListener('click', (e) => pickEvent(e.target.closest('tr.ev')));
   el('log').addEventListener('click', (e) => pickEvent(e.target.closest('tr.lg.click')));
   el('log').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('tr.lg.click')) pickEvent(e.target); });
