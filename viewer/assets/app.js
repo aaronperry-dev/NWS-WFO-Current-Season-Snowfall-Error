@@ -80,11 +80,12 @@ function toFloat32LE(buf) {
 }
 
 /* ---------- state ---------- */
-const state = { M: null, season: null, offs: [], grids: [], ev: null, evGrid: null, sel: null, token: 0, base: 'terrain', opacity: 0.85 };
-let map, errLayer, terrainLayer, bm = {}, baseLabelLayer, cwaGeo, cwaCasing, labelLayer, tipBox, legendBox, cwaData;
+const state = { M: null, season: null, offs: [], grids: [], ev: null, evGrid: null, sel: null, token: 0, base: 'dark', opacity: 0.85 };
+let waterGeo, prodBox, lineSets = [], map, errLayer, terrainLayer, bm = {}, baseLabelLayer, cwaGeo, cwaCasing, labelLayer, tipBox, legendBox, cwaData;
 /* Our own basemap (built by scripts/build_basemap.py): shaded-relief terrain tiles + water / border / state-line vectors + labels, all served from basemap/. */
-const BASE_DIR = 'basemap/', LAND_PLAIN = '#eef0ea', WATER_FILL = '#c4d8e4';
-const BASEMAPS = { terrain: { name: 'Terrain (shaded relief)' }, plain: { name: 'Plain (no terrain)' } };
+const BASE_DIR = 'basemap/', LAND_PLAIN = '#eef0ea', WATER_FILL = '#c4d8e4', LAND_DARK = '#06090d', WATER_DARK = '#0a1a29';
+const BASEMAPS = { dark: { name: 'Dark (AWIPS-style)' }, terrain: { name: 'Terrain (shaded relief)' }, plain: { name: 'Plain (no terrain)' } };
+const LINE_DARK = { coast: { color: '#8ea3b4', weight: 1 }, state: { color: '#8f99a3', weight: 1.2, dashArray: '5 3' }, border: { color: '#d3dbe2', weight: 2.2 } };
 const LINE_STYLE = { coast: { color: '#5f7a8a', weight: 1 }, state: { color: '#59626b', weight: 1.1, dashArray: '5 3' }, border: { color: '#2c343b', weight: 2 } };
 const STATUS_TEXT = { ongoing: 'In progress', pending_forecast: 'Awaiting forecast archive', no_forecast: 'No forecast found', missing_analysis: 'Analysis missing' };
 const STATUS_HELP = { ongoing: 'Snow is still falling, or fell less than 12 h ago, so the event may still grow.', pending_forecast: 'The event is over, but the NCEI forecast archive (about 5 days behind) does not reach it yet. It is verified automatically once it does.',
@@ -106,9 +107,9 @@ function setTitle(label) {                                   // 'NWS WFO Snowfal
 }
 
 function notice(msg) { const n = el('notice'); n.hidden = !msg; n.textContent = msg || ''; }
-async function getJson(url) { const r = await fetch(url); if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`); return r.json(); }
+async function getJson(url) { const r = await fetch(url, { cache: 'no-cache' }); if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`); return r.json(); }
 async function getGrid(url, e) {
-  const r = await fetch(url); if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const r = await fetch(url, { cache: 'no-cache' }); if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const buf = await r.arrayBuffer(); if (buf.byteLength !== e.nx * e.ny * 4) throw new Error(`expected ${e.nx * e.ny * 4} bytes, got ${buf.byteLength}`);
   return toFloat32LE(buf);
 }
@@ -151,13 +152,14 @@ function clearEvent() { if (!state.ev) return; state.ev = null; state.evGrid = n
 
 /* ---------- rendering ---------- */
 function refresh() {
-  errLayer.grids = activeGrids(); errLayer.redraw(); drawStatus(); drawTable(); drawEvents(); drawLog(); drawLabels(); styleCwa(); drawDetail(); drawLegend(); writeHash();
+  errLayer.grids = activeGrids(); errLayer.redraw(); drawStatus(); drawTable(); drawEvents(); drawLog(); drawProduct(); drawLabels(); styleCwa(); drawDetail(); drawLegend(); writeHash();
 }
 function drawStatus() {
   const s = seasonData(), box = el('status'), total = state.offs.reduce((n, o) => n + o.events.length, 0), ver = state.offs.reduce((n, o) => n + o.events.filter((e) => e.status === 'verified').length, 0);
   const pend = state.offs.reduce((n, o) => n + o.events.filter((e) => e.status === 'pending_forecast').length, 0), on = state.offs.reduce((n, o) => n + o.events.filter((e) => e.status === 'ongoing').length, 0);
   const upd = s.updated ? `Updated ${zt(new Date(s.updated))}` : '', an = s.nohrsc_through ? `NOHRSC analysis through ${zt(new Date(s.nohrsc_through))}` : '', ar = s.ndfd_archive_complete_through ? `forecast archive complete through ${MON[+s.ndfd_archive_complete_through.slice(5, 7) - 1]} ${+s.ndfd_archive_complete_through.slice(8)}` : '';
-  let html = `<div class="meta">${[upd, an, ar].filter(Boolean).map(esc).join(' &middot; ')}</div>`;
+  const bar = el('statusbar'); if (bar) bar.textContent = [upd, an, ar].filter(Boolean).join('   \u00b7   ');
+  let html = '';
   if (!total) {
     const tots = state.offs.filter((o) => o.observed_total_in != null).map((o) => `${esc(o.off)} ${o.observed_total_in.toFixed(2)} in`).join(' &middot; ');
     html += `<div class="empty"><b>No qualifying snow events yet this season.</b> An event needs a CWA-mean total of at least ${state.M.thresholds.event_total_in} in, or at least ${state.M.thresholds.local_area_pct}% of the CWA receiving ${state.M.thresholds.local_min_in} in or more. ${tots ? 'CWA-mean snowfall so far (all small bursts): ' + tots + '.' : ''}</div>`;
@@ -184,31 +186,39 @@ function drawEvents() {
   list.sort((a, b) => b.start.localeCompare(a.start) || a.off.localeCompare(b.off));
   const L = LIM().event;
   el('eventsTitle').textContent = state.sel ? `Events: ${state.sel}` : 'Events, newest first';
-  el('events').innerHTML = `<thead><tr><th>Event (UTC)</th><th>Office</th><th>Obs.</th><th>Fcst.</th><th>Error (in)</th><th>MAE</th></tr></thead><tbody>${list.map((e) => {
+  el('events').innerHTML = `<thead><tr><th>Event (UTC)</th><th>Office</th><th class="c-sm">Obs.</th><th class="c-sm">Fcst.</th><th>Error (in)</th><th>MAE</th></tr></thead><tbody>${list.map((e) => {
     const m = state.M.offices[e.off], sel = state.ev && state.ev.off === e.off && state.ev.id === e.id, ver = e.status === 'verified';
     const head = `<td class="evtime"><b>${esc(dayRange(e.start, e.end))}</b><small>${esc(evTitle(e))}${localTag(e)}</small></td><td><span class="chip" style="background:${esc(m.color)}"></span><b>${esc(e.off)}</b></td>`;
-    if (!ver) return `<tr class="ev pend" data-off="${e.off}" data-id="${e.id}" title="${esc(STATUS_HELP[e.status] || '')}">${head}<td>${e.obs_cwa_mean.toFixed(1)}</td><td colspan="3" class="badge"><span class="st st-${esc(e.status)}">${esc(STATUS_TEXT[e.status] || e.status)}</span></td></tr>`;
-    return `<tr class="ev ${sel ? 'sel' : ''}" data-off="${e.off}" data-id="${e.id}" tabindex="0" title="Show the error map of this event">${head}<td>${e.mean_observed.toFixed(1)}</td><td>${e.mean_forecast.toFixed(1)}</td>
+    if (!ver) return `<tr class="ev pend" data-off="${e.off}" data-id="${e.id}" title="${esc(STATUS_HELP[e.status] || '')}">${head}<td class="c-sm">${e.obs_cwa_mean.toFixed(1)}</td><td colspan="3" class="badge"><span class="st st-${esc(e.status)}">${esc(STATUS_TEXT[e.status] || e.status)}</span></td></tr>`;
+    return `<tr class="ev ${sel ? 'sel' : ''}" data-off="${e.off}" data-id="${e.id}" tabindex="0" title="Show the error map of this event">${head}<td class="c-sm">${e.mean_observed.toFixed(1)}</td><td class="c-sm">${e.mean_forecast.toFixed(1)}</td>
       <td><span class="val" style="${chipStyle(e.mean_error, L)}">${fmt(e.mean_error, 1)}</span></td><td>${e.mae.toFixed(1)}</td></tr>`;
   }).join('')}</tbody>`;
 }
 function drawLog() {
   const sec = el('logSection'), box = el('log'); if (!state.offs.length) { sec.hidden = true; return; } sec.hidden = false;
-  const th = state.M.thresholds, L = state.offs.filter((o) => !state.sel || state.sel === o.off);
-  el('logTitle').textContent = state.sel ? `Snowfall log: ${state.sel}` : 'Snowfall log, every WFO';
-  box.innerHTML = L.map((o) => {
-    const m = state.M.offices[o.off], eps = o.episodes || [], nev = eps.filter((x) => x.event_ids && x.event_ids.length).length;
-    const head = `<h3><span class="chip" style="background:${esc(m.color)}"></span><b>${esc(o.off)}</b> <small>${eps.length} measurable episode${eps.length === 1 ? '' : 's'}${nev ? `, ${nev} counted as event${nev === 1 ? '' : 's'}` : ''}</small></h3>`;
-    if (!eps.length) return `<div class="logoff">${head}<p class="hint">No measurable snowfall yet this season.</p></div>`;
-    const rows = eps.map((x) => {
-      const evs = (x.event_ids || []).map((id) => o.events.find((e) => e.id === id)).filter(Boolean), ver = evs.find((e) => e.status === 'verified'), other = evs[0];
-      let tag = '<span class="na">not an event</span>', cls = 'lg', attr = '';
-      if (x.ongoing) tag = '<span class="st st-ongoing">In progress</span>';
-      else if (ver) { tag = '<span class="st st-verified">Verified event</span>'; cls = 'lg click'; attr = ` data-off="${o.off}" data-id="${ver.id}" tabindex="0" title="Show the error map of this event"`; }
-      else if (other) tag = `<span class="st st-${esc(other.status)}">${esc(STATUS_TEXT[other.status] || other.status)}</span>`;
-      return `<tr class="${cls}"${attr}><td class="evtime"><b>${esc(dayRange(x.start, x.end))}</b><small>${esc(evTitle(x))}</small></td><td>${tag}</td><td>${x.mean_in.toFixed(2)}</td><td>${x.max_in.toFixed(1)}</td><td>${Math.round(x.area_ge1_pct)}%</td></tr>`;
-    }).join('');
-    return `<div class="logoff">${head}<div class="evwrap"><table class="events log"><thead><tr><th>Snowfall (UTC)</th><th>Event?</th><th title="CWA-mean total, inches">Mean</th><th title="Highest cell, inches">Peak</th><th title="Share of the CWA with at least ${th.local_min_in} in">&ge;${th.local_min_in} in</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  const th = state.M.thresholds, rows = [];
+  for (const o of state.offs) if (!state.sel || state.sel === o.off) for (const x of (o.episodes || [])) rows.push({ o, x });
+  rows.sort((a, b) => b.x.start.localeCompare(a.x.start) || a.o.off.localeCompare(b.o.off));
+  const nev = rows.filter((r) => r.x.event_ids && r.x.event_ids.length).length;
+  el('logTitle').textContent = `Snowfall log: ${state.sel || 'all WFOs'} — ${rows.length} measurable episode${rows.length === 1 ? '' : 's'}, ${nev} counted as event${nev === 1 ? '' : 's'}`;
+  if (!rows.length) { box.innerHTML = '<p class="hint">No measurable snowfall yet this season.</p>'; return; }
+  box.innerHTML = `<table class="events log"><thead><tr><th>Office</th><th>Snowfall (UTC)</th><th>Event?</th><th title="CWA-mean total, inches">Mean (in)</th><th title="Highest cell, inches">Peak (in)</th><th title="Share of the CWA with at least ${th.local_min_in} in">&ge;${th.local_min_in} in</th></tr></thead><tbody>${rows.map(({ o, x }) => {
+    const m = state.M.offices[o.off], evs = (x.event_ids || []).map((id) => o.events.find((e) => e.id === id)).filter(Boolean), ver = evs.find((e) => e.status === 'verified'), other = evs[0];
+    let tag = '<span class="na">not an event</span>', cls = 'lg', attr = '';
+    if (x.ongoing) tag = '<span class="st st-ongoing">In progress</span>';
+    else if (ver) { tag = '<span class="st st-verified">Verified event</span>'; cls = 'lg click'; attr = ` data-off="${o.off}" data-id="${ver.id}" tabindex="0" title="Show the error map of this event"`; }
+    else if (other) tag = `<span class="st st-${esc(other.status)}">${esc(STATUS_TEXT[other.status] || other.status)}</span>`;
+    return `<tr class="${cls}"${attr}><td><span class="chip" style="background:${esc(m.color)}"></span><b>${esc(o.off)}</b></td><td class="evtime"><b>${esc(dayRange(x.start, x.end))}</b><small>${esc(evTitle(x))}</small></td><td>${tag}</td><td>${x.mean_in.toFixed(2)}</td><td>${x.max_in.toFixed(1)}</td><td>${Math.round(x.area_ge1_pct)}%</td></tr>`;
+  }).join('')}</tbody></table>
+  <p class="hint">Every stretch of measurable snow (at least ${th.measurable_in} in on ${th.measurable_area_pct}% of the CWA in a 6-h period), whether or not it is big enough to verify. Mean = CWA-mean total, Peak = highest cell. Verified events can be clicked.</p>`;
+}
+function drawProduct() {
+  if (!prodBox || !state.M) return; const S = seasonData();
+  if (state.ev) { const e = eventOf(state.ev.off, state.ev.id), m = state.M.offices[state.ev.off];
+    prodBox.innerHTML = `<div class="pl-h"><i class="chip" style="background:${esc(m.color)}"></i>${esc(state.ev.off)} event error &middot; ${esc(evTitle(e))}</div><div>Forecast &minus; observed snowfall, inches &middot; mean ${fmt(e.mean_error)} in</div>`; return; }
+  prodBox.innerHTML = `<div class="pl-h">${esc(S.label)} &middot; season-to-date mean error</div><div>Forecast &minus; observed snowfall, inches per event</div>` + state.offs.map((o) => {
+    const g = state.grids.find((x) => x.off === o.off), vis = !g || g.visible, m = state.M.offices[o.off], ver = o.events.filter((e) => e.status === 'verified').length;
+    return `<div class="pl-o${vis ? '' : ' off'}"><i class="chip" style="background:${esc(m.color)}"></i>${esc(o.off)}&nbsp; ${o.stats ? fmt(o.stats.mean_error) + ' in &middot; ' + ver + ' event' + (ver === 1 ? '' : 's') : 'no verified events'}</div>`;
   }).join('');
 }
 function drawLabels() {
@@ -226,7 +236,7 @@ function styleCwa() {
   if (!cwaGeo) return;
   cwaGeo.eachLayer((l) => { const off = l.feature.properties.cwa, g = state.grids.find((x) => x.off === off), on = state.ev ? state.ev.off === off : (!g || g.visible), sel = state.sel === off;
     l.setStyle({ color: state.M.offices[off].color, weight: sel ? 4.5 : 2.4, opacity: on ? 1 : 0.35, fill: true, fillOpacity: 0.001 }); });
-  cwaCasing.eachLayer((l) => { const off = l.feature.properties.cwa, sel = state.sel === off; l.setStyle({ color: '#fff', weight: sel ? 8 : 5, opacity: 0.85, fill: false }); });
+  cwaCasing.eachLayer((l) => { const off = l.feature.properties.cwa, sel = state.sel === off; const dk = state.base === 'dark'; l.setStyle({ color: dk ? '#000' : '#fff', weight: sel ? 8 : 5, opacity: dk ? 0.7 : 0.85, fill: false }); });
 }
 function radarNote(off, cells, excl) {
   const rx = state.M.radar_exclusions && state.M.radar_exclusions[off];
@@ -283,10 +293,10 @@ function drawLegend() {
 /* ---------- selection ---------- */
 function fitOffice(off) { const g = offEntry(off); if (g) map.fitBounds([[g.north - g.ny * g.dy, g.west], [g.north, g.west + g.nx * g.dx]], { padding: [20, 20], maxZoom: 9 }); }
 function select(off, zoom = true) {
-  state.sel = (state.sel === off && !zoom) ? null : off; if (state.ev && state.ev.off !== state.sel) { state.ev = null; state.evGrid = null; refresh(); } else { styleCwa(); drawTable(); drawEvents(); drawLog(); drawDetail(); writeHash(); }
+  state.sel = (state.sel === off && !zoom) ? null : off; if (state.ev && state.ev.off !== state.sel) { state.ev = null; state.evGrid = null; refresh(); } else { styleCwa(); drawTable(); drawEvents(); drawLog(); drawProduct(); drawDetail(); writeHash(); }
   if (zoom && state.sel) fitOffice(off);
 }
-function deselect() { if (state.ev) { clearEvent(); return; } if (state.sel) { state.sel = null; styleCwa(); drawTable(); drawEvents(); drawLog(); drawDetail(); writeHash(); } }
+function deselect() { if (state.ev) { clearEvent(); return; } if (state.sel) { state.sel = null; styleCwa(); drawTable(); drawEvents(); drawLog(); drawProduct(); drawDetail(); writeHash(); } }
 
 /* ---------- setup ---------- */
 async function loadBasemapFiles() {
@@ -296,9 +306,14 @@ async function loadBasemapFiles() {
   } catch (err) { bm = {}; notice('Basemap files missing: run scripts/build_basemap.py (' + err.message + ')'); }
 }
 function setBasemap(key) {
-  if (!BASEMAPS[key]) key = 'terrain'; state.base = key;
+  if (!BASEMAPS[key]) key = 'dark'; state.base = key;
   if (terrainLayer) { if (key === 'terrain') { if (!map.hasLayer(terrainLayer)) terrainLayer.addTo(map); } else map.removeLayer(terrainLayer); }
-  el('map').style.background = key === 'terrain' ? '#d9dfd0' : LAND_PLAIN; el('basemap').value = key; writeHash();
+  const dk = key === 'dark'; document.body.classList.toggle('dark-map', dk);
+  el('map').style.background = key === 'terrain' ? '#d9dfd0' : dk ? LAND_DARK : LAND_PLAIN; el('basemap').value = key;
+  if (waterGeo) waterGeo.setStyle({ fillColor: dk ? WATER_DARK : WATER_FILL });
+  for (const t of lineSets) t.l.setStyle(t.casing ? { opacity: dk ? 0 : 0.55 } : Object.assign({ dashArray: null }, dk ? LINE_DARK[t.kind] : LINE_STYLE[t.kind]));
+  if (cwaCasing) styleCwa();
+  writeHash();
 }
 function drawBaseLabels() {
   if (!baseLabelLayer || !bm.labels) return; baseLabelLayer.clearLayers(); const z = map.getZoom();
@@ -306,23 +321,25 @@ function drawBaseLabels() {
     baseLabelLayer.addLayer(L.marker([l.lat, l.lon], { pane: 'baseLabels', interactive: false, keyboard: false, icon: L.divIcon({ className: '', iconSize: [0, 0], html: `<div class="bm-label bm-${l.kind}">${esc(l.name)}</div>` }) }));
 }
 function initMap() {
-  const m = bm.meta, opts = { zoomSnap: 0.25, worldCopyJump: false, attributionControl: false, minZoom: m ? m.minzoom : 5, maxZoom: m ? m.maxzoom + 1 : 10 };
+  const m = bm.meta, opts = { zoomControl: false, zoomSnap: 0.25, worldCopyJump: false, attributionControl: false, minZoom: m ? m.minzoom : 5, maxZoom: m ? m.maxzoom + 1 : 10 };
   if (m) { opts.maxBounds = L.latLngBounds(m.bounds); opts.maxBoundsViscosity = 1.0; }
   map = L.map('map', opts).setView([44.6, -71.3], 7);
-  if (m) { const fit = () => map.setMinZoom(Math.max(m.minzoom, map.getBoundsZoom(opts.maxBounds, true))); fit(); map.on('resize', fit); }      // never zoom out past the edge of the basemap  // draw order, bottom to top: terrain tiles (tile pane, 200) < water 250 < snowfall-error overlay 300 < borders and coasts 390 < CWA outlines 400 < place names 440 < office labels 600
+  if (window.ResizeObserver) new ResizeObserver(() => map.invalidateSize()).observe(el('map'));      // docks and the log change the map window's size L.control.zoom({ position: 'topright' }).addTo(map);
+  if (m) { const fit = () => map.setMinZoom(Math.max(m.minzoom, map.getBoundsZoom(opts.maxBounds, true) - 0.25)); fit(); map.on('resize', fit); }      // never zoom out past the edge of the basemap  // draw order, bottom to top: terrain tiles (tile pane, 200) < water 250 < snowfall-error overlay 300 < borders and coasts 390 < CWA outlines 400 < place names 440 < office labels 600
   for (const [n, z] of [['water', 250], ['data', 300], ['lines', 390], ['baseLabels', 440]]) { const p = map.createPane(n); p.style.zIndex = z; p.style.pointerEvents = 'none'; }
   L.control.attribution({ prefix: false }).addTo(map).addAttribution('Data: NWS NDFD (NCEI), NOHRSC &middot; Terrain: <a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md" target="_blank" rel="noopener">AWS Terrain Tiles</a> &middot; Boundaries: Natural Earth &middot; CWA: NWS');
   if (m) {
     terrainLayer = L.tileLayer(BASE_DIR + m.tiles, { minNativeZoom: m.minzoom, maxNativeZoom: m.maxzoom, minZoom: m.minzoom, maxZoom: m.maxzoom + 1, bounds: m.bounds, tileSize: 256, zIndex: 1, keepBuffer: 4, errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==' });
-    L.geoJSON(bm.water, { pane: 'water', renderer: L.svg({ pane: 'water' }), interactive: false, style: { stroke: false, fillColor: WATER_FILL, fillOpacity: 1 } }).addTo(map);
-    const lineLayer = (kind, extra) => L.geoJSON(bm.lines, { pane: 'lines', renderer: L.svg({ pane: 'lines' }), interactive: false, filter: (f) => f.properties.kind === kind, style: Object.assign({ lineCap: 'round', lineJoin: 'round' }, LINE_STYLE[kind], extra) }).addTo(map);
-    lineLayer('state', { color: '#fff', weight: 3, opacity: 0.55, dashArray: null }); lineLayer('border', { color: '#fff', weight: 4, opacity: 0.55 });      // pale casings keep the lines readable over the data colours
+    waterGeo = L.geoJSON(bm.water, { pane: 'water', renderer: L.svg({ pane: 'water' }), interactive: false, style: { stroke: false, fillColor: WATER_FILL, fillOpacity: 1 } }).addTo(map);
+    const lineLayer = (kind, extra, casing) => { const l = L.geoJSON(bm.lines, { pane: 'lines', renderer: L.svg({ pane: 'lines' }), interactive: false, filter: (f) => f.properties.kind === kind, style: Object.assign({ lineCap: 'round', lineJoin: 'round' }, LINE_STYLE[kind], extra) }).addTo(map); lineSets.push({ kind, l, casing: !!casing }); };
+    lineLayer('state', { color: '#fff', weight: 3, opacity: 0.55, dashArray: null }, true); lineLayer('border', { color: '#fff', weight: 4, opacity: 0.55 }, true);      // pale casings keep the lines readable over the data colours
     lineLayer('coast'); lineLayer('state'); lineLayer('border');
     baseLabelLayer = L.layerGroup().addTo(map); drawBaseLabels(); map.on('zoomend', drawBaseLabels);
   }
   errLayer = new ErrorLayer({ pane: 'data', tileSize: 256, scale: Math.max(2, Math.ceil(window.devicePixelRatio || 1)),   /* cells are only ~4 px wide at zoom 7: paint at 2x so fractional zoom levels do not blur them */ zIndex: 5, opacity: state.opacity, updateWhenIdle: false, keepBuffer: 2 }).addTo(map);
   labelLayer = L.layerGroup().addTo(map);
   legendBox = L.control({ position: 'bottomright' }); legendBox.onAdd = () => L.DomUtil.create('div', 'legend'); legendBox.addTo(map); legendBox = legendBox.getContainer();
+  const pc = L.control({ position: 'topleft' }); pc.onAdd = () => L.DomUtil.create('div', 'prodlabel'); pc.addTo(map); prodBox = pc.getContainer();
 
   // pointer tooltip: follows the cursor over the map
   const tipHtml = (ll) => {
@@ -367,7 +384,7 @@ async function main() {
   el('opacity').value = state.opacity; el('opacityOut').textContent = Math.round(state.opacity * 100) + '%';
   await loadBasemapFiles();
   initMap(); window.NWS.map = map; window.NWS.state = state;      // exposed for embedding and testing
-  setBasemap(h.base || 'terrain');
+  setBasemap(h.base || 'dark');
   const season = seasons.includes(h.season) ? h.season : (state.M.default_season || seasons[0]); el('season').value = season;
   if (h.office) state.sel = h.office.toUpperCase();
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') deselect(); });
@@ -384,6 +401,7 @@ async function main() {
   el('log').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('tr.lg.click')) pickEvent(e.target); });
   el('events').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('tr.ev')) pickEvent(e.target); });
   await Promise.all([loadSeason(season), initCwa()]);
+  map.invalidateSize();
   const ev = h.event && h.event.match(/^([A-Za-z]+)-(\d+)$/);
   if (ev && eventOf(ev[1].toUpperCase(), ev[2])) await showEvent(ev[1].toUpperCase(), ev[2]);
   else if (state.sel && offEntry(state.sel)) select(state.sel, true);
