@@ -101,3 +101,10 @@ table.events { width: 100%; border-collapse: collapse; font-variant-numeric: tab
 
 .events .evtime .loc { display: inline-block; margin-left: 4px; padding: 0 4px; border-radius: 3px; border: 1px solid var(--muted); font-size: 9.5px; line-height: 1.3; text-transform: uppercase; letter-spacing: .03em; }
 .note { color: var(--muted); font-size: 12px; margin: 4px 0; }
+
+.logoff { margin: 0 0 12px; } .logoff h3 { font-size: 13px; margin: 8px 0 4px; } .logoff h3 small { color: var(--muted); font-weight: 400; }
+.events.log td:nth-child(2), .events.log th:nth-child(2) { text-align: left; white-space: normal; }
+.events.log td:nth-child(n+3), .events.log th:nth-child(n+3) { text-align: right; }
+.events.log tr.click { cursor: pointer; } .events.log tr.click:hover td { background: #f1f4f7; }
+.st-verified { background: #e8f6ec; border-color: #b9dfc4; color: #1f6b3a; }
+.na { color: var(--muted); font-size: 11px; }

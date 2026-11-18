@@ -42,6 +42,11 @@ $h = fn(string $s): string => htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 
       <div class="evwrap"><table id="events" class="events"></table></div>
       <p class="hint">Obs. / Fcst.: CWA-mean inches. Click a verified event to map its error; click it again, or press Esc, to return.</p>
     </section>
+    <section id="logSection" hidden>
+      <h2 id="logTitle">Snowfall log</h2>
+      <div id="log"></div>
+      <p class="hint">Every stretch of measurable snow (at least 0.1&nbsp;in on 1% of the CWA in a 6-h period), whether or not it is big enough to verify. Mean = CWA-mean total, Peak = highest cell, in inches. Verified events can be clicked.</p>
+    </section>
     <section id="detail" class="detail" hidden></section>
     <section class="about">
       <h2>How to read this</h2>

@@ -101,6 +101,10 @@ const evTitle = (ev) => `${zt(new Date(ev.start))} to ${zt(new Date(ev.end))}`;
 const localHelp = (e) => `Localized event: about ${Math.round(e.area_pct)}% of the CWA received at least ${state.M.thresholds.local_min_in} in, but the CWA-mean total (${e.obs_cwa_mean.toFixed(2)} in) is below the ${state.M.thresholds.event_total_in} in threshold.`;
 const localTag = (e) => e.basis === 'local' ? ` <span class="loc" title="${esc(localHelp(e))}">local</span>` : '';
 
+function setTitle(label) {                                   // 'NWS WFO Snowfall Forecast Error: 2026–27 Winter Season' (page title and header follow the selected season)
+  const t = `NWS WFO Snowfall Forecast Error: ${String(label).replace(/\s*season$/i, '')} Winter Season`; document.title = t; const h = document.querySelector('.topbar h1'); if (h) h.textContent = t;
+}
+
 function notice(msg) { const n = el('notice'); n.hidden = !msg; n.textContent = msg || ''; }
 async function getJson(url) { const r = await fetch(url); if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`); return r.json(); }
 async function getGrid(url, e) {
@@ -129,7 +133,7 @@ async function loadSeason(id) {
     const offs = state.M.order.filter((o) => s.offices[o]).map((o) => Object.assign({ off: o, visible: true }, s.offices[o]));
     const grids = await Promise.all(offs.filter((o) => o.file).map(async (o) => Object.assign({}, o, { data: await getGrid(url.bin(id, o.off, o), o).catch((e) => { throw new Error(`${o.off}: ${e.message}`); }), lim: LIM().season })));
     if (token !== state.token) return;                      // a newer season was chosen meanwhile
-    el('topSeason').textContent = s.label || id; state.season = id; state.offs = offs; state.grids = grids; state.ev = null; state.evGrid = null;
+    el('topSeason').textContent = s.label || id; setTitle(s.label || id); state.season = id; state.offs = offs; state.grids = grids; state.ev = null; state.evGrid = null;
     if (state.sel && !s.offices[state.sel]) state.sel = null;
     refresh();
   } catch (err) { notice('Could not load data: ' + err.message); }
@@ -147,7 +151,7 @@ function clearEvent() { if (!state.ev) return; state.ev = null; state.evGrid = n
 
 /* ---------- rendering ---------- */
 function refresh() {
-  errLayer.grids = activeGrids(); errLayer.redraw(); drawStatus(); drawTable(); drawEvents(); drawLabels(); styleCwa(); drawDetail(); drawLegend(); writeHash();
+  errLayer.grids = activeGrids(); errLayer.redraw(); drawStatus(); drawTable(); drawEvents(); drawLog(); drawLabels(); styleCwa(); drawDetail(); drawLegend(); writeHash();
 }
 function drawStatus() {
   const s = seasonData(), box = el('status'), total = state.offs.reduce((n, o) => n + o.events.length, 0), ver = state.offs.reduce((n, o) => n + o.events.filter((e) => e.status === 'verified').length, 0);
@@ -187,6 +191,25 @@ function drawEvents() {
     return `<tr class="ev ${sel ? 'sel' : ''}" data-off="${e.off}" data-id="${e.id}" tabindex="0" title="Show the error map of this event">${head}<td>${e.mean_observed.toFixed(1)}</td><td>${e.mean_forecast.toFixed(1)}</td>
       <td><span class="val" style="${chipStyle(e.mean_error, L)}">${fmt(e.mean_error, 1)}</span></td><td>${e.mae.toFixed(1)}</td></tr>`;
   }).join('')}</tbody>`;
+}
+function drawLog() {
+  const sec = el('logSection'), box = el('log'); if (!state.offs.length) { sec.hidden = true; return; } sec.hidden = false;
+  const th = state.M.thresholds, L = state.offs.filter((o) => !state.sel || state.sel === o.off);
+  el('logTitle').textContent = state.sel ? `Snowfall log: ${state.sel}` : 'Snowfall log, every WFO';
+  box.innerHTML = L.map((o) => {
+    const m = state.M.offices[o.off], eps = o.episodes || [], nev = eps.filter((x) => x.event_ids && x.event_ids.length).length;
+    const head = `<h3><span class="chip" style="background:${esc(m.color)}"></span><b>${esc(o.off)}</b> <small>${eps.length} measurable episode${eps.length === 1 ? '' : 's'}${nev ? `, ${nev} counted as event${nev === 1 ? '' : 's'}` : ''}</small></h3>`;
+    if (!eps.length) return `<div class="logoff">${head}<p class="hint">No measurable snowfall yet this season.</p></div>`;
+    const rows = eps.map((x) => {
+      const evs = (x.event_ids || []).map((id) => o.events.find((e) => e.id === id)).filter(Boolean), ver = evs.find((e) => e.status === 'verified'), other = evs[0];
+      let tag = '<span class="na">not an event</span>', cls = 'lg', attr = '';
+      if (x.ongoing) tag = '<span class="st st-ongoing">In progress</span>';
+      else if (ver) { tag = '<span class="st st-verified">Verified event</span>'; cls = 'lg click'; attr = ` data-off="${o.off}" data-id="${ver.id}" tabindex="0" title="Show the error map of this event"`; }
+      else if (other) tag = `<span class="st st-${esc(other.status)}">${esc(STATUS_TEXT[other.status] || other.status)}</span>`;
+      return `<tr class="${cls}"${attr}><td class="evtime"><b>${esc(dayRange(x.start, x.end))}</b><small>${esc(evTitle(x))}</small></td><td>${tag}</td><td>${x.mean_in.toFixed(2)}</td><td>${x.max_in.toFixed(1)}</td><td>${Math.round(x.area_ge1_pct)}%</td></tr>`;
+    }).join('');
+    return `<div class="logoff">${head}<div class="evwrap"><table class="events log"><thead><tr><th>Snowfall (UTC)</th><th>Event?</th><th title="CWA-mean total, inches">Mean</th><th title="Highest cell, inches">Peak</th><th title="Share of the CWA with at least ${th.local_min_in} in">&ge;${th.local_min_in} in</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  }).join('');
 }
 function drawLabels() {
   labelLayer.clearLayers(); if (!cwaData) return;
@@ -260,10 +283,10 @@ function drawLegend() {
 /* ---------- selection ---------- */
 function fitOffice(off) { const g = offEntry(off); if (g) map.fitBounds([[g.north - g.ny * g.dy, g.west], [g.north, g.west + g.nx * g.dx]], { padding: [20, 20], maxZoom: 9 }); }
 function select(off, zoom = true) {
-  state.sel = (state.sel === off && !zoom) ? null : off; if (state.ev && state.ev.off !== state.sel) { state.ev = null; state.evGrid = null; refresh(); } else { styleCwa(); drawTable(); drawEvents(); drawDetail(); writeHash(); }
+  state.sel = (state.sel === off && !zoom) ? null : off; if (state.ev && state.ev.off !== state.sel) { state.ev = null; state.evGrid = null; refresh(); } else { styleCwa(); drawTable(); drawEvents(); drawLog(); drawDetail(); writeHash(); }
   if (zoom && state.sel) fitOffice(off);
 }
-function deselect() { if (state.ev) { clearEvent(); return; } if (state.sel) { state.sel = null; styleCwa(); drawTable(); drawEvents(); drawDetail(); writeHash(); } }
+function deselect() { if (state.ev) { clearEvent(); return; } if (state.sel) { state.sel = null; styleCwa(); drawTable(); drawEvents(); drawLog(); drawDetail(); writeHash(); } }
 
 /* ---------- setup ---------- */
 async function loadBasemapFiles() {
@@ -356,6 +379,8 @@ async function main() {
   el('offices').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('tr.row')) select(e.target.dataset.off, true); });
   const pickEvent = (tr) => { if (!tr || tr.classList.contains('pend')) return; const { off, id } = tr.dataset; if (state.ev && state.ev.off === off && state.ev.id === id) clearEvent(); else showEvent(off, id); };
   el('events').addEventListener('click', (e) => pickEvent(e.target.closest('tr.ev')));
+  el('log').addEventListener('click', (e) => pickEvent(e.target.closest('tr.lg.click')));
+  el('log').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('tr.lg.click')) pickEvent(e.target); });
   el('events').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('tr.ev')) pickEvent(e.target); });
   await Promise.all([loadSeason(season), initCwa()]);
   const ev = h.event && h.event.match(/^([A-Za-z]+)-(\d+)$/);

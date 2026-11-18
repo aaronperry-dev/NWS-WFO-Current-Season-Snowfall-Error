@@ -4,14 +4,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NWS WFO Current-Season Snowfall Forecast Error</title>
+<title>NWS WFO Snowfall Forecast Error: 2026–27 Winter Season</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 <header class="topbar">
-  <h1>NWS WFO Current-Season Snowfall Forecast Error</h1>
+  <h1>NWS WFO Snowfall Forecast Error: 2026–27 Winter Season</h1>
   <p>NWS Boston/Norton &middot; Gray/Portland &middot; Caribou &middot; Burlington &middot; <span id="topSeason"></span></p>
 </header>
 <div class="app">
@@ -36,6 +36,11 @@
       <h2 id="eventsTitle">Events</h2>
       <div class="evwrap"><table id="events" class="events"></table></div>
       <p class="hint">Obs. / Fcst.: CWA-mean inches. Click a verified event to map its error; click it again, or press Esc, to return.</p>
+    </section>
+    <section id="logSection" hidden>
+      <h2 id="logTitle">Snowfall log</h2>
+      <div id="log"></div>
+      <p class="hint">Every stretch of measurable snow (at least 0.1&nbsp;in on 1% of the CWA in a 6-h period), whether or not it is big enough to verify. Mean = CWA-mean total, Peak = highest cell, in inches. Verified events can be clicked.</p>
     </section>
     <section id="detail" class="detail" hidden></section>
     <section class="about">

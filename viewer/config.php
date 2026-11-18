@@ -5,7 +5,7 @@ declare(strict_types=1);
  * DATA_DIR holds manifest.json, cwa.geojson, <season>/<OFFICE>_mean_error.bin and <season>/events/<OFFICE>_<id>_error.bin, as written by pipeline/update_season.py.
  * Override with the NWS_VIEWER_DATA environment variable to keep the data outside the web root.
  */
-const APP_TITLE = 'NWS WFO Current-Season Snowfall Forecast Error';
+const APP_TITLE = 'NWS WFO Snowfall Forecast Error: 2026–27 Winter Season';
 $dataDir = getenv('NWS_VIEWER_DATA') ?: __DIR__ . '/data';
 define('DATA_DIR', rtrim($dataDir, '/'));
 

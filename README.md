@@ -20,6 +20,7 @@ The method is the one used in the multi-season study this tracker is based on ([
 * **Offices table:** per office, the number of verified events (and how many are detected in all), the season-to-date mean error, MAE and hit rate. A ⚠ marks fewer than 5 verified events.
 * **Events list, newest first:** each event with its UTC window, CWA-mean observed and forecast snowfall, mean error and MAE. Finished events whose forecast is not archived yet show **Awaiting forecast archive**; snow still falling (or fallen less than 12 h ago) shows **In progress**. Click a verified event to map its error; click an office to list only its events.
 * **Map:** terrain basemap, CWA outlines, and the error grid. A tooltip follows the cursor with the cell's value. Radar beam-blockage sectors in the observations (BTV, GYX) are hatched and excluded from every statistic.
+* **Snowfall log:** for every office, every stretch of *measurable* snow this season (at least 0.1 in on 1 % of the CWA in a 6-hour period; the NWS definition of measurable), with its CWA-mean total, highest cell and share of the CWA at 1 in or more. Episodes that qualify as events say so (a verified one opens its error map); the rest are marked *not an event*. Also in `results/snowfall_log_<season>.csv`.
 * **Status line:** when the data were last updated, how recent the observed analysis is, and how far the forecast archive reaches.
 * Before the first qualifying event of a season, the page says so and shows each office's CWA-mean snowfall so far.
 
@@ -45,7 +46,7 @@ The view is kept in the URL (`#season=2026-27&office=BOX&event=BOX-2026121206&ba
 1. Create the repository, push this folder to `main`.
 2. **Settings → Pages → Build and deployment → Source: GitHub Actions.**
 3. **Settings → Actions → General → Workflow permissions: Read and write** (the job commits the updated data; the workflow file already requests `contents: write`).
-4. **Actions → "Update season data and deploy viewer" → Run workflow** once. After that it runs by itself every 6 hours from October through May (at :47 past 01, 07, 13 and 19 UTC). The site is at `https://<user>.github.io/<repo>/`.
+4. **Actions → "Update season data and deploy viewer" → Run workflow** once. After that it runs by itself **every day at about 18:17 UTC** from October through May (change the `cron` line in `.github/workflows/update.yml`; GitHub may start scheduled runs a few minutes late), and on every push that changes `viewer/` or `pipeline/`. Each run reads the NOHRSC analyses published since the last run and verifies every finished event the NCEI forecast archive now covers. The site is at `https://<user>.github.io/<repo>/`.
 
 Notes:
 * Each run commits the changed `state/`, `viewer/data/` and `results/` files (nothing is committed when nothing changed), then deploys the page.
@@ -71,6 +72,7 @@ pipeline/update_season.py     the whole pipeline (observed, events, forecast, er
 reference/                    CWA polygons used to cut the grids
 state/<season>/               series_<OFFICE>.csv (6-h CWA means), events.json, grids/<OFFICE>_<event>.npz (observed + forecast totals)
 results/events_<season>.csv   every event with its status and statistics (also handy for a spreadsheet)
+results/snowfall_log_<season>.csv   every measurable snowfall episode per office, event or not
 viewer/                       the web page; data/ (manifest, outlines, .bin grids), basemap/ (own terrain + boundaries), vendor/leaflet
 scripts/build_basemap.py      rebuilds viewer/basemap (AWS Terrain Tiles + Natural Earth 1:50m); needs requirements-basemap.txt
 .github/workflows/update.yml  scheduled update + Pages deploy
