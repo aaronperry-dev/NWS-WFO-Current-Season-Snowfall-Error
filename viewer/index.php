@@ -31,7 +31,6 @@ $h = fn(string $s): string => htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 
   <button type="button" id="tbClear" title="Clear the selected office or event (Esc)" disabled>Clear selection</button>
   <span class="sep"></span>
   <button type="button" id="tbSample" aria-pressed="true" title="Show or hide the cursor readout">Sample</button>
-  <button type="button" id="tbInfo" aria-pressed="true" aria-controls="dockRight" title="Show or hide the whole right-hand panel (status, selection, how to read this)">Info panel</button>
   <span class="keys">Click the legend on the map to show or hide an office</span>
 </div>
 <div id="notice" class="notice" hidden></div>
@@ -53,6 +52,7 @@ $h = fn(string $s): string => htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 
     </section>
   </aside>
   <main class="center">
+    <button type="button" id="edgeInfo" class="edge-tab" aria-expanded="true" aria-controls="dockRight" title="Hide the side panel"><span class="sr">Hide the side panel</span></button>
     <div id="map" role="application" aria-label="Map of snowfall forecast error by NWS office, season to date and by event"></div>
     <section id="logSection" class="pane bottom" hidden>
       <h2 id="logTitle">Snowfall log</h2>
@@ -75,7 +75,7 @@ $h = fn(string $s): string => htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 
           <li><b>Red</b> = the forecast was too high; <b>blue</b> = too low. Each cell is forecast &minus; observed snowfall in inches. The map shows the season-to-date mean over all verified events (color range &plusmn;2&nbsp;in), or one event when you pick it (&plusmn;6&nbsp;in).</li>
           <li><b>Event</b>: a stretch of snow with a CWA-mean total of at least 1.5&nbsp;in (6-h periods of 0.08&nbsp;in or more, gaps up to 12&nbsp;h merged, split at 48&nbsp;h). Snow that stays local also counts when at least 5% of the CWA gets 1&nbsp;in or more; these are tagged <b>localized</b>. Times are UTC.</li>
           <li>Forecast: the official WFO-edited NDFD snowfall grid, the latest run issued at least 12&nbsp;h before the event began. Observed: NOHRSC National Snowfall Analysis.</li>
-          <li>The public forecast archive runs about 5&nbsp;days behind, so a finished event waits as &ldquo;awaiting forecast archive&rdquo; until it can be verified. Recent analyses can still be revised; they are re-read for 21&nbsp;days.</li>
+          <li>The public NWS NDFD forecast data on NCEI run about 5&nbsp;days behind, so a finished event waits as &ldquo;Awaiting NWS NDFD forecast&rdquo; until it can be verified. Recent analyses can still be revised; they are re-read for 21&nbsp;days.</li>
           <li>A few events say little: season means from fewer than 5&nbsp;events are flagged &#9888;.</li>
           <li>Hatched cells are excluded radar beam-blockage artifacts in the observation analysis.</li>
         </ul>

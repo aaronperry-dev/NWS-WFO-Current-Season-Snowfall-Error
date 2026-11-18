@@ -199,3 +199,12 @@ body.no-sample .cursor-tip { display: none; }
 /* whole right-hand panel hidden: the map and log take its width */
 .ws.no-right { grid-template-columns: clamp(380px, 27vw, 560px) minmax(0, 1fr); }
 .ws.no-right .dock.right { display: none; }
+
+/* edge tab: hides and shows the side panel */
+.center { position: relative; }
+.edge-tab { position: absolute; right: 0; top: 130px; z-index: 1200; display: flex; align-items: center; justify-content: center; width: 22px; height: 72px; padding: 0; color: var(--bar-ink); background: var(--bar); border: 1px solid var(--btn-bd); border-right: 0; border-radius: 6px 0 0 6px; box-shadow: var(--tip-shadow); cursor: pointer; }
+.edge-tab:hover { background: var(--hover); } .edge-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.edge-tab::before { content: ""; border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 8px solid currentColor; }
+.edge-tab[aria-expanded="false"]::before { border-left: 0; border-right: 8px solid currentColor; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (max-width: 1000px) { .edge-tab { display: none; } }

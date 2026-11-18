@@ -18,10 +18,10 @@ The method is the one used in the multi-season study this tracker is based on ([
 ## What you see
 
 * **Offices table:** per office, the number of verified events (and how many are detected in all), the season-to-date mean error, MAE and hit rate. A ⚠ marks fewer than 5 verified events.
-* **Events list, newest first:** each event with its UTC window, CWA-mean observed and forecast snowfall, mean error and MAE. Finished events whose forecast is not archived yet show **Awaiting forecast archive**; snow still falling (or fallen less than 12 h ago) shows **In progress**. Click a verified event to map its error; click an office to list only its events.
+* **Events list, newest first:** each event with its UTC window, CWA-mean observed and forecast snowfall, mean error and MAE. Finished events whose NWS NDFD forecast is not available yet show **Awaiting NWS NDFD forecast**; snow still falling (or fallen less than 12 h ago) shows **In progress**. Click a verified event to map its error; click an office to list only its events.
 * **Map:** terrain basemap, CWA outlines, and the error grid. A tooltip follows the cursor with the cell's value. Radar beam-blockage sectors in the observations (BTV, GYX) are hatched and excluded from every statistic.
 * **Snowfall log:** for every office, every stretch of *measurable* snow this season (at least 0.1 in on 1 % of the CWA in a 6-hour period; the NWS definition of measurable), with its CWA-mean total, highest cell and share of the CWA at 1 in or more. Episodes that qualify as events say so (a verified one opens its error map); the rest are marked *not an event*. Also in `results/snowfall_log_<season>.csv`.
-* **Status line:** when the data were last updated, how recent the observed analysis is, and how far the forecast archive reaches.
+* **Status line:** when the data were last updated, how recent the observed analysis is, and how far the NWS NDFD forecast data reach.
 * Before the first qualifying event of a season, the page says so and shows each office's CWA-mean snowfall so far.
 
 The view is kept in the URL (`#season=2026-27&office=BOX&event=BOX-2026121206&base=terrain&op=0.85`), so any view can be shared.
@@ -39,7 +39,7 @@ The view is kept in the URL (`#season=2026-27&office=BOX&event=BOX-2026121206&ba
 4. **Error** = forecast − observed per cell, over the cells inside the CWA. Per event: mean forecast and observed, mean error, MAE, RMSE, percent bias, hit rate (|error| ≤ max(2 in, 30 % of observed)), and the highest cell. Season to date: the mean over verified events (a cell needs valid data in ≥ 90 % of them), with a 90 % bootstrap interval from 5 events on.
 5. **Event status:** `ongoing` → `pending_forecast` → `verified`. Others: `no_forecast` (the archive covers the day but no run covers the event) and `missing_analysis` (a NOHRSC period is missing).
 
-> **The forecast archive trails real time by about 5 days.** NCEI publishes the NDFD files with a delay, so a finished event is first listed as *awaiting forecast archive* and is verified automatically on a later run. Nothing is guessed in the meantime, and a forecast is only used once its whole day is archived.
+> **The NWS NDFD forecast data trail real time by about 5 days.** NCEI publishes the NDFD files with a delay, so a finished event is first listed as *Awaiting NWS NDFD forecast* and is verified automatically on a later run. Nothing is guessed in the meantime, and a forecast is only used once its whole day is available.
 
 ## Set it up on GitHub
 
@@ -108,7 +108,7 @@ At the top of `pipeline/update_season.py`: the offices, the months of a season (
 * NOHRSC is an analysis, not ground truth, and is itself least certain where observations are sparse. Recent values can change; they are re-read for 21 days.
 * Few events say little: a season mean from a handful of events is indicative only (⚠ below 5 events).
 * Events use one fixed forecast issuance (≥ 12 h before the event began), not each forecaster's last update before the snow.
-* The forecast archive can have gaps; an event the archive cannot cover is marked `no_forecast`, not dropped.
+* The NWS NDFD forecast data can have gaps; an event they cannot cover is marked `no_forecast`, not dropped.
 
 ## Data and credits
 

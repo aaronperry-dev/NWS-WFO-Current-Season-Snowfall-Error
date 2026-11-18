@@ -87,9 +87,9 @@ const BASE_DIR = 'basemap/', LAND_PLAIN = '#eef0ea', WATER_FILL = '#c4d8e4', LAN
 const BASEMAPS = { terrain: { name: 'Terrain (shaded relief)' }, plain: { name: 'Plain (no terrain)' }, dark: { name: 'Dark (AWIPS-style)' } };
 const LINE_DARK = { coast: { color: '#8ea3b4', weight: 1 }, state: { color: '#8f99a3', weight: 1.2, dashArray: '5 3' }, border: { color: '#d3dbe2', weight: 2.2 } };
 const LINE_STYLE = { coast: { color: '#5f7a8a', weight: 1 }, state: { color: '#59626b', weight: 1.1, dashArray: '5 3' }, border: { color: '#2c343b', weight: 2 } };
-const STATUS_TEXT = { ongoing: 'In progress', pending_forecast: 'Awaiting forecast archive', no_forecast: 'No forecast found', missing_analysis: 'Analysis missing' };
-const STATUS_HELP = { ongoing: 'Snow is still falling, or fell less than 12 h ago, so the event may still grow.', pending_forecast: 'The event is over, but the NCEI forecast archive (about 5 days behind) does not reach it yet. It is verified automatically once it does.',
-  no_forecast: 'The forecast archive covers this day, but no NDFD run covers the event.', missing_analysis: 'A NOHRSC analysis period is missing, so the event cannot be verified.' };
+const STATUS_TEXT = { ongoing: 'In progress', pending_forecast: 'Awaiting NWS NDFD forecast', no_forecast: 'No forecast found', missing_analysis: 'Analysis missing' };
+const STATUS_HELP = { ongoing: 'Snow is still falling, or fell less than 12 h ago, so the event may still grow.', pending_forecast: 'The event is over, but the NWS NDFD forecast data on NCEI (about 5 days behind) do not reach it yet. It is verified automatically once they do.',
+  no_forecast: 'The NWS NDFD forecast data cover this day, but no run covers the event.', missing_analysis: 'A NOHRSC analysis period is missing, so the event cannot be verified.' };
 
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], p2 = (n) => String(n).padStart(2, '0');
 const zt = (d) => `${MON[d.getUTCMonth()]} ${d.getUTCDate()} ${p2(d.getUTCHours())}Z`;
@@ -158,13 +158,13 @@ function refresh() {
 function drawStatus() {
   const s = seasonData(), box = el('status'), total = state.offs.reduce((n, o) => n + o.events.length, 0), ver = state.offs.reduce((n, o) => n + o.events.filter((e) => e.status === 'verified').length, 0);
   const pend = state.offs.reduce((n, o) => n + o.events.filter((e) => e.status === 'pending_forecast').length, 0), on = state.offs.reduce((n, o) => n + o.events.filter((e) => e.status === 'ongoing').length, 0);
-  const upd = s.updated ? `Updated ${zt(new Date(s.updated))}` : '', an = s.nohrsc_through ? `NOHRSC analysis through ${zt(new Date(s.nohrsc_through))}` : '', ar = s.ndfd_archive_complete_through ? `Forecast archive complete through ${MON[+s.ndfd_archive_complete_through.slice(5, 7) - 1]} ${+s.ndfd_archive_complete_through.slice(8)}` : '';
+  const upd = s.updated ? `Updated ${zt(new Date(s.updated))}` : '', an = s.nohrsc_through ? `NOHRSC analysis through ${zt(new Date(s.nohrsc_through))}` : '', ar = s.ndfd_archive_complete_through ? `NWS NDFD forecast available through ${MON[+s.ndfd_archive_complete_through.slice(5, 7) - 1]} ${+s.ndfd_archive_complete_through.slice(8)}` : '';
   const bar = el('statusbar'); if (bar) bar.textContent = [upd, an, ar].filter(Boolean).join('   \u00b7   ');
   let html = '';
   if (!total) {
     const tots = state.offs.filter((o) => o.observed_total_in != null).map((o) => `${esc(o.off)} ${o.observed_total_in.toFixed(2)} in`).join(' &middot; ');
     html += `<div class="empty"><b>No qualifying snow events yet this season.</b> An event needs a CWA-mean total of at least ${state.M.thresholds.event_total_in} in, or at least ${state.M.thresholds.local_area_pct}% of the CWA receiving ${state.M.thresholds.local_min_in} in or more. ${tots ? 'CWA-mean snowfall so far (all small bursts): ' + tots + '.' : ''}</div>`;
-  } else html += `<div class="counts"><b>${total}</b> events detected &middot; <b>${ver}</b> verified${pend ? ` &middot; ${pend} awaiting the forecast archive` : ''}${on ? ` &middot; ${on} in progress` : ''}</div>`;
+  } else html += `<div class="counts"><b>${total}</b> events detected &middot; <b>${ver}</b> verified${pend ? ` &middot; ${pend} awaiting the NWS NDFD forecast` : ''}${on ? ` &middot; ${on} in progress` : ''}</div>`;
   box.innerHTML = html;
 }
 function drawTable() {
@@ -187,6 +187,7 @@ function drawEvents() {
   list.sort((a, b) => b.start.localeCompare(a.start) || a.off.localeCompare(b.off));
   const L = LIM().event;
   el('eventsTitle').textContent = state.sel ? `Events: ${state.sel}` : 'Events, newest first';
+  if (!list.length) { el('events').innerHTML = `<tbody><tr><td colspan="6" style="text-align:left;white-space:normal"><span class="na">No qualifying events yet for ${esc(state.sel)}. See the snowfall log below for its smaller snowfalls.</span></td></tr></tbody>`; return; }
   el('events').innerHTML = `<thead><tr><th>Event (UTC)</th><th>Office</th><th class="c-sm">Obs.</th><th class="c-sm">Fcst.</th><th>Error (in)</th><th>MAE</th></tr></thead><tbody>${list.map((e) => {
     const m = state.M.offices[e.off], sel = state.ev && state.ev.off === e.off && state.ev.id === e.id, ver = e.status === 'verified';
     const head = `<td class="evtime"><b>${esc(dayRange(e.start, e.end))}</b><small>${esc(evTitle(e))}${localTag(e)}</small></td><td><span class="chip" style="background:${esc(m.color)}"></span><b>${esc(e.off)}</b></td>`;
@@ -292,7 +293,11 @@ function drawLegend() {
 }
 
 /* ---------- selection ---------- */
-function fitOffice(off) { const g = offEntry(off); if (g) map.fitBounds([[g.north - g.ny * g.dy, g.west], [g.north, g.west + g.nx * g.dx]], { padding: [20, 20], maxZoom: 9 }); }
+function fitOffice(off) {                                          // centre and zoom the map on the CWA outline (or, failing that, its grid)
+  let b = null; if (cwaGeo) cwaGeo.eachLayer((l) => { if (l.feature.properties.cwa === off) b = l.getBounds(); });
+  const g = offEntry(off); if (!b && g) b = L.latLngBounds([[g.north - g.ny * g.dy, g.west], [g.north, g.west + g.nx * g.dx]]);
+  if (b) map.fitBounds(b, { padding: [30, 30], maxZoom: 9 });
+}
 function select(off, zoom = true) {
   state.sel = (state.sel === off && !zoom) ? null : off; if (state.ev && state.ev.off !== state.sel) { state.ev = null; state.evGrid = null; refresh(); } else { styleCwa(); drawTable(); drawEvents(); drawLog(); drawProduct(); drawDetail(); writeHash(); }
   if (zoom && state.sel) fitOffice(off);
@@ -306,7 +311,7 @@ function fitAll() {
                  [Math.max(...state.offs.map((g) => g.north)), Math.max(...state.offs.map((g) => g.west + g.nx * g.dx))]], { padding: [10, 10], animate: false });
 }
 function initChrome() {                                              // collapsible panes, info panel, clock
-  const ws = document.querySelector('.ws'), ib = el('tbInfo'), showInfo = (on) => { ws.classList.toggle('no-right', !on); ib.setAttribute('aria-pressed', String(on)); if (window.NWS.map) window.NWS.map.invalidateSize(); };
+  const ws = document.querySelector('.ws'), ib = el('edgeInfo'), showInfo = (on) => { ws.classList.toggle('no-right', !on); ib.setAttribute('aria-expanded', String(on)); ib.title = on ? 'Hide the side panel' : 'Show the side panel'; ib.querySelector('.sr').textContent = ib.title; if (window.NWS.map) window.NWS.map.invalidateSize(); };
   let on = true; try { on = localStorage.getItem('nws.info') !== '0'; } catch (_) { /* storage unavailable */ }
   showInfo(on); ib.addEventListener('click', () => { const n = ws.classList.contains('no-right'); showInfo(n); try { localStorage.setItem('nws.info', n ? '1' : '0'); } catch (_) { /* ignore */ } });
   document.querySelectorAll('.pane.collapsible').forEach((p) => {
@@ -394,7 +399,7 @@ async function initCwa() {
   try {
     cwaData = await getJson(url.cwa());
     cwaCasing = L.geoJSON(cwaData, { interactive: false, style: { color: '#fff', weight: 5, fill: false } }).addTo(map);
-    cwaGeo = L.geoJSON(cwaData, { style: { weight: 2.4, fill: true, fillOpacity: 0.001 }, onEachFeature: (f, l) => l.on('click', () => select(f.properties.cwa, false)) }).addTo(map);
+    cwaGeo = L.geoJSON(cwaData, { style: { weight: 2.4, fill: true, fillOpacity: 0.001 }, onEachFeature: (f, l) => l.on('click', () => select(f.properties.cwa, true)) }).addTo(map);
     cwaGeo.bringToFront(); styleCwa(); drawLabels();
   } catch (err) { notice('Could not load CWA outlines: ' + err.message); }
 }
