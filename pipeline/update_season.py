@@ -205,7 +205,7 @@ def fetch_period(t):
         if not bool(np.all((a < -9000) | ((a > -0.01) & (a < 400)))): return "err implausible values"
         a[a < -9000] = np.nan; tmp = str(out) + f".{os.getpid()}.{threading.get_ident()}.tmp.npy"; np.save(tmp, a); os.replace(tmp, out); return "ok"
     except Exception as e:
-        return "err " + str(e)[:80]
+        return "err " + type(e).__name__ + ": " + str(e)[:200]
 
 def _utcnow(): return dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
 def floor6(t): return t.replace(hour=t.hour // 6 * 6, minute=0, second=0, microsecond=0)
@@ -441,7 +441,12 @@ def update(args):
             if t >= look and (cfg.CUBE / (key(t) + ".npy")).exists() and (cfg.CUBE / (key(t) + ".npy")).stat().st_mtime < time.time() - 3600: (cfg.CUBE / (key(t) + ".npy")).unlink()
     with ThreadPoolExecutor(6) as ex: got = dict(zip(todo, ex.map(fetch_period, todo)))
     c = Counter(r.split()[0] for r in got.values()); print("  NOHRSC periods:", dict(c), flush=True)
-    if c["err"]: print("  WARNING: some periods failed and will be retried on the next run", flush=True)
+    if c["err"]:
+        msgs = Counter(r for r in got.values() if r.startswith("err")).most_common(3)
+        for m, n in msgs: print(f"  {n} x {m}", flush=True)
+        if c["err"] == len(todo):
+            raise RuntimeError("none of the NOHRSC periods could be read (see the message above); nothing was changed. If it mentions imagecodecs: pip install imagecodecs")
+        print("  WARNING: some periods failed and will be retried on the next run", flush=True)
     for t in todo:
         if got[t].startswith("err"): continue                                  # transient failure: not recorded, so the next run tries again
         f = cfg.CUBE / (key(t) + ".npy")
