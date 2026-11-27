@@ -502,10 +502,10 @@
      "counts": {}
     }
    },
-   "updated": "2026-11-26T01:48Z",
+   "updated": "2026-11-27T01:45Z",
    "nohrsc_through": "2026-11-25T18:00Z",
-   "ndfd_archive_complete_through": "2026-11-21",
-   "ndfd_latest_run": "2026-11-21T23:46Z"
+   "ndfd_archive_complete_through": "2026-11-23",
+   "ndfd_latest_run": "2026-11-23T23:47Z"
   }
  },
  "default_season": "2026-27"
