@@ -108,9 +108,9 @@
   ],
   "BOX": []
  },
- "updated": "2026-11-27T01:45Z",
- "asof": "2026-11-27T01:00Z",
- "nohrsc_through": "2026-11-25T18:00Z",
+ "updated": "2026-11-28T01:28Z",
+ "asof": "2026-11-28T01:00Z",
+ "nohrsc_through": "2026-11-28T00:00Z",
  "ndfd_archive_complete_through": "2026-11-23",
  "season": "2026-27",
  "window_stats": {
@@ -275,6 +275,12 @@
    "max": 2.8,
    "p01": 11.29,
    "p1": 1.82
+  },
+  "CAR|2026-11-27T00:00Z|2026-11-27T06:00Z": {
+   "mean": 0.026,
+   "max": 0.6,
+   "p01": 7.94,
+   "p1": 0.0
   }
  },
  "episodes": {
@@ -357,6 +363,17 @@
     "max_in": 1.2,
     "area_ge01_pct": 10.56,
     "area_ge1_pct": 0.05,
+    "ongoing": false,
+    "event_ids": []
+   },
+   {
+    "start": "2026-11-27T00:00Z",
+    "end": "2026-11-27T06:00Z",
+    "hours": 6,
+    "mean_in": 0.026,
+    "max_in": 0.6,
+    "area_ge01_pct": 7.94,
+    "area_ge1_pct": 0.0,
     "ongoing": false,
     "event_ids": []
    }
